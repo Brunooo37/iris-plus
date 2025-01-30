@@ -7,7 +7,8 @@ Efficient retrieval augmented generation (RAG) classification.
 ```bash
 conda env create -f environment.yml
 conda activate rag
-cd /path/to/project/directory
+git clone https://github.com/Elliot-D-Hill/ragifier.git
+cd ragifier
 pip install -e .
 ```
 
