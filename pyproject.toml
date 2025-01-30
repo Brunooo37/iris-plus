@@ -19,5 +19,5 @@ license = "MIT"
 license-files = ["LICEN[CS]E*"]
 
 [project.urls]
-Homepage = "https://github.com/pypa/example" # FIXME update
-Issues = "https://github.com/pypa/example/issues" # FIXME update
+Homepage = "https://github.com/fengnanli-neo/ragifier"
+Issues = "https://github.com/fengnanli-neo/ragifier/issues"
