@@ -26,9 +26,9 @@ def make_batch_df(batch, model):
         attention_mask=batch["attention_mask"],
         token_type_ids=batch["token_type_ids"],
     )
-    batch["embedding"] = masked_mean_pool(output, mask=batch["attention_mask"])
+    batch["vector"] = masked_mean_pool(output, mask=batch["attention_mask"])
     batch = tensors_to_numpy(batch)
-    columns = ["id", "chunk_id", "text", "label", "embedding"]
+    columns = ["id", "chunk_id", "text", "label", "vector"]
     return pl.DataFrame(batch).select(columns)
 
 
