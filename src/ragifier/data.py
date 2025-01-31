@@ -1,12 +1,13 @@
 from functools import partial
 from pathlib import Path
+from typing import cast
 
 import polars as pl
 import polars.selectors as cs
-from datasets import Dataset, DatasetDict, load_from_disk
+from datasets import Dataset, load_from_disk
 from transformers import AutoTokenizer
 
-from ragifier.config import Config
+from ragifier.config import Config, DatasetConfig
 
 
 def make_chunks(text, chunk_length, overlap) -> list[str]:
@@ -27,7 +28,7 @@ def format_dataframe(df: pl.DataFrame, texts: list[str]) -> pl.DataFrame:
     )
 
 
-def chunk_text(df: pl.DataFrame, cfg: Config) -> pl.DataFrame:
+def chunk_text(df: pl.DataFrame, cfg: DatasetConfig) -> pl.DataFrame:
     texts = []
     for text in df["text"]:
         chunks = make_chunks(text, chunk_length=cfg.chunk_length, overlap=cfg.overlap)
@@ -57,50 +58,40 @@ def tokenize(batch, tokenizer, max_length):
     )
 
 
-def train_val_test_split(dataset: Dataset, cfg: Config) -> Dataset:
-    dataset = DatasetDict({"train": dataset})
-    train_testvalid = dataset["train"].train_test_split(
-        test_size=cfg.train_size, shuffle=False
-    )
-    test_valid = train_testvalid["test"].train_test_split(test_size=0.5, shuffle=False)
-    return DatasetDict(
-        {
-            "train": train_testvalid["train"],
-            "test": test_valid["test"],
-            "validation": test_valid["train"],
-        }
-    )
+# TODO implement
+def make_hyperpartisan_dataset(path: Path):
+    return pl.DataFrame()
 
 
 # TODO add other datasets
-def get_df_fn(path: Path):
-    if path.name == "arxiv11":
-        fn = make_arxiv11_dataset
-    # elif path.name == "hyperpartisan":
-    #     fn = make_hyperpartisan_dataset
+def make_df(in_path: Path, out_path: Path) -> pl.DataFrame:
+    if out_path.name == "arxiv11":
+        return make_arxiv11_dataset(path=in_path)
+    elif out_path.name == "hyperpartisan":
+        return make_hyperpartisan_dataset(path=in_path)
     else:
-        raise ValueError(f"Unknown dataset: {path.name}")
-    return partial(fn, path=path)
+        raise ValueError(f"Unknown dataset: {out_path.name}")
 
 
-def make_dataset(cfg: Config) -> DatasetDict:
-    make_df = get_df_fn(path=cfg.output_path)
-    df: pl.DataFrame = make_df(path=cfg.input_path)
+def make_dataset(cfg: Config) -> Dataset:
+    df = make_df(in_path=cfg.dataset.input_path, out_path=cfg.dataset.output_path)
     if cfg.fast_dev_run:
         df = df.head(10)
-    df = chunk_text(df=df, cfg=cfg)
+    df = chunk_text(df=df, cfg=cfg.dataset)
     dataset = Dataset.from_polars(df)
     tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
-    tokenize_fn = partial(tokenize, tokenizer=tokenizer, max_length=cfg.max_length)
+    tokenize_fn = partial(
+        tokenize, tokenizer=tokenizer, max_length=cfg.dataset.max_length
+    )
     dataset = dataset.map(tokenize_fn, batched=True, desc="Tokenizing")
-    dataset = train_val_test_split(dataset, cfg=cfg)
     return dataset
 
 
-def get_dataset(device: str, cfg: Config) -> DatasetDict:
-    if cfg.output_path.exists():
-        dataset = load_from_disk(cfg.output_path)
-    else:
+def get_dataset(cfg: Config) -> Dataset:
+    if not cfg.dataset.output_path.exists() or cfg.regenerate:
         dataset = make_dataset(cfg=cfg)
-        dataset.save_to_disk(cfg.output_path)
-    return dataset.with_format("torch", device=device)
+        dataset.save_to_disk(cfg.dataset.output_path)
+    else:
+        dataset = load_from_disk(cfg.dataset.output_path)
+        dataset = cast(Dataset, dataset)
+    return dataset.with_format("torch", device=cfg.device)
