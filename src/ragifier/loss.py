@@ -9,9 +9,9 @@ import torch.nn.functional as F
 #     return torch.norm(similarity_matrix - identity, p="fro")
 
 
-# encourages queries to be close to each other
+# encourages queries to be far apart
 def query_penalty(query):
-    return torch.cdist(query, query, p=2).mean()
+    return -torch.cdist(query, query, p=2).mean()
 
 
 # encourages retrieved vectors to be close to the query
