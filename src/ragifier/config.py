@@ -40,7 +40,6 @@ class Config(BaseModel):
     regenerate: bool
     seed: int
     model: str
-    batch_size: int
     dataset: DatasetConfig
     dataloader: DataloaderConfig
     database: DatabaseConfig

@@ -2,7 +2,6 @@ fast_dev_run = true
 regenerate = true
 seed = 42
 model = "bert-base-uncased"
-batch_size = 64
 
 [dataset]
 input_path = "data/raw/arxiv-11/data"
@@ -11,6 +10,11 @@ train_size = 0.8
 max_length = 512
 chunk_length = 512
 overlap = 32
+
+[dataloader]
+batch_size = 64
+pin_memory = true
+num_workers = 0
 
 [database]
 database_path = "data/"

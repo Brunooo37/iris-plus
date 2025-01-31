@@ -10,6 +10,36 @@ from transformers import AutoTokenizer
 from ragifier.config import Config, DatasetConfig
 
 
+def make_arxiv11_dataset(path: Path) -> pl.DataFrame:
+    rows = [
+        {"text": path.read_text(), "label": path.parent.name}
+        for path in path.rglob("*.txt")
+    ]
+    df = pl.LazyFrame(rows)
+    df = (
+        df.with_columns(pl.col("label").rank("dense"))
+        .with_row_index(name="id")
+        .with_columns(cs.integer().cast(pl.Int32))
+        .collect()
+    )
+    return df
+
+
+# TODO implement
+def make_hyperpartisan_dataset(path: Path):
+    return pl.DataFrame()
+
+
+# TODO add other datasets
+def make_df(in_path: Path, out_path: Path) -> pl.DataFrame:
+    if out_path.name == "arxiv11":
+        return make_arxiv11_dataset(path=in_path)
+    elif out_path.name == "hyperpartisan":
+        return make_hyperpartisan_dataset(path=in_path)
+    else:
+        raise ValueError(f"Unknown dataset: {out_path.name}")
+
+
 def make_chunks(text, chunk_length, overlap) -> list[str]:
     words = text.split()
     chunks = []
@@ -37,40 +67,10 @@ def chunk_text(df: pl.DataFrame, cfg: DatasetConfig) -> pl.DataFrame:
     return df
 
 
-def make_arxiv11_dataset(path: Path) -> pl.DataFrame:
-    rows = [
-        {"text": path.read_text(), "label": path.parent.name}
-        for path in path.rglob("*.txt")
-    ]
-    df = pl.LazyFrame(rows)
-    df = (
-        df.with_columns(pl.col("label").rank("dense"))
-        .with_row_index(name="id")
-        .with_columns(cs.integer().cast(pl.Int32))
-        .collect()
-    )
-    return df
-
-
-def tokenize(batch, tokenizer, max_length):
+def tokenize(batch, tokenizer, max_length) -> AutoTokenizer:
     return tokenizer(
         batch["text"], truncation=True, padding="max_length", max_length=max_length
     )
-
-
-# TODO implement
-def make_hyperpartisan_dataset(path: Path):
-    return pl.DataFrame()
-
-
-# TODO add other datasets
-def make_df(in_path: Path, out_path: Path) -> pl.DataFrame:
-    if out_path.name == "arxiv11":
-        return make_arxiv11_dataset(path=in_path)
-    elif out_path.name == "hyperpartisan":
-        return make_hyperpartisan_dataset(path=in_path)
-    else:
-        raise ValueError(f"Unknown dataset: {out_path.name}")
 
 
 def make_dataset(cfg: Config) -> Dataset:
