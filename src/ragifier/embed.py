@@ -33,7 +33,7 @@ def make_batch_df(batch, model):
 
 
 @torch.no_grad()
-def encode_text(model: AutoModel, dataloader: DataLoader) -> pl.DataFrame:
+def embed_text(model: AutoModel, dataloader: DataLoader) -> pl.DataFrame:
     dfs: list[pl.LazyFrame] = []
     for batch in tqdm(dataloader):
         df = make_batch_df(batch, model)

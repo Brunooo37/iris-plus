@@ -4,7 +4,7 @@ from transformers import AutoModel
 
 from ragifier.config import get_config
 from ragifier.data import get_dataset
-from ragifier.encode import encode_text
+from ragifier.embed import embed_text
 
 
 def main():
@@ -16,7 +16,7 @@ def main():
 
     model = AutoModel.from_pretrained(cfg.model)
     model.to(cfg.device)
-    results = encode_text(model, dataloader=dataloader)
+    results = embed_text(model, dataloader=dataloader)
     print(results)
 
 
