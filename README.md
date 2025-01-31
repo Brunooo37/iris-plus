@@ -14,7 +14,7 @@ pip install -e .
 
 ## Usage
 
-Modify the configuration in `config.toml`, then run
+To change the program behavior, modify the parameters in `config.toml`, then run
 
 ```bash
 python -m ragifier
