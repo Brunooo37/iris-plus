@@ -19,7 +19,7 @@ def vector_penalty(query, vectors):
     return torch.cdist(vectors, query, p=2).mean()
 
 
-def loss(outputs, labels, queries, vectors, temperature, alpha, beta):
+def loss(outputs, labels, queries, vectors, alpha, beta):
     # queries = F.normalize(queries, p=2, dim=-1)
     # vectors = F.normalize(vectors, p=2, dim=-1)
     return (
