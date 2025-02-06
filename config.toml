@@ -55,7 +55,7 @@ eval_every_n_epochs = 1
 path = "results/hyperparameters.json"
 checkpoint = "models/hyperpartisan.pt"
 n_trials = 16
-prune = false
+prune = true
 
 [evaluator]
 n_bootstraps = 1000

@@ -43,7 +43,6 @@ def main():
         train_model(
             cfg=cfg,
             loaders=loaders,
-            tbl=tbl,
             ini_queries=ini_queries,
             use_best=True,
             validate=False,

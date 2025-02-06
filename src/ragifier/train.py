@@ -2,7 +2,6 @@ import json
 
 import torch
 import torch.nn as nn
-from lancedb.table import Table
 from torch.nn.utils import clip_grad_norm_
 from torch.optim.adamw import AdamW
 from torch.optim.optimizer import Optimizer
@@ -38,11 +37,12 @@ class Trainer:
         self.optimizer.zero_grad()
         inputs = inputs.to(self.cfg.device)
         labels = labels.to(self.cfg.device)
-        outputs = self.model(inputs)
+        outputs = self.model(inputs, padding_mask)
         loss: torch.Tensor = self.criterion(outputs, labels)
         loss.backward()
         clip_grad_norm_(self.model.parameters(), max_norm=self.cfg.gradient_clip)
         self.optimizer.step()
+        self.loaders.train.dataset.queries = self.model.queries  # type: ignore
         return loss
 
     def train(self, validate: bool = True) -> None:
@@ -94,7 +94,7 @@ def make_trainer(
     model = make_model(ini_queries=ini_queries, cfg=cfg.model)
     model.to(cfg.trainer.device)
     optimizer = AdamW(model.parameters(), **cfg.optimizer.model_dump())
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss(ignore_index=cfg.trainer.ignore_index)
     return Trainer(
         model=model,
         optimizer=optimizer,
@@ -113,7 +113,6 @@ def set_hyperparams(cfg: Config, lr: float, weight_decay: float) -> Config:
 def train_model(
     cfg: Config,
     loaders: DataLoaders,
-    tbl: Table,
     ini_queries: torch.Tensor,
     use_best: bool = False,
     validate: bool = True,

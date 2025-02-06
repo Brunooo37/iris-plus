@@ -63,7 +63,7 @@ def make_study(cfg: Config, sampler: optuna.samplers.BaseSampler) -> optuna.stud
 
 def tune(cfg: Config, loaders: DataLoaders, tbl: Table, ini_queries: torch.Tensor):
     trainer_fn = partial(
-        make_trainer, cfg=cfg, tbl=tbl, ini_queries=ini_queries, loaders=loaders
+        make_trainer, cfg=cfg, ini_queries=ini_queries, loaders=loaders
     )
     objective = Objective(cfg=cfg, trainer_fn=trainer_fn)
     half_trials = cfg.tuner.n_trials // 2
