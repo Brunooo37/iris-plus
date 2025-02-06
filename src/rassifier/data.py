@@ -7,7 +7,7 @@ import polars.selectors as cs
 from datasets import Dataset, load_from_disk
 from transformers import AutoTokenizer
 
-from ragifier.config import Config, DatasetConfig
+from rassifier.config import Config, DatasetConfig
 
 
 def make_arxiv11_dataset(path: Path) -> pl.DataFrame:
@@ -96,4 +96,4 @@ def get_dataset(cfg: Config) -> Dataset:
     else:
         dataset = load_from_disk(cfg.dataset.output_path)
         dataset = cast(Dataset, dataset)
-    return dataset.with_format("torch", device=cfg.device)
+    return dataset.with_format("torch", device=cfg.trainer.device)

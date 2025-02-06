@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 from lancedb.table import Table
 
-from ragifier.config import ModelConfig
+from rassifier.config import ModelConfig
 
 
 def masked_mean_pool(input: torch.Tensor, padding_mask: torch.Tensor) -> torch.Tensor:

@@ -4,14 +4,14 @@ from torch.utils.data import DataLoader
 from torchmetrics import Accuracy
 from transformers import AutoModelForTextEncoding
 
-from ragifier.config import get_config
-from ragifier.data import get_dataset
-from ragifier.database import make_database
-from ragifier.dataset import get_ini_queries, make_loaders
-from ragifier.evaluate import evaluate_model
-from ragifier.model import get_num_classes
-from ragifier.train import train_model
-from ragifier.tune import tune
+from rassifier.config import get_config
+from rassifier.data import get_dataset
+from rassifier.database import make_database
+from rassifier.dataset import get_ini_queries, make_loaders
+from rassifier.evaluate import evaluate_model
+from rassifier.model import get_num_classes
+from rassifier.train import train_model
+from rassifier.tune import tune
 
 
 def main():
@@ -22,7 +22,7 @@ def main():
     dataloader = DataLoader(dataset, **cfg.dataloader.model_dump())  # type: ignore
 
     encoder = AutoModelForTextEncoding.from_pretrained(cfg.model_id)
-    encoder.to(cfg.device)
+    encoder.to(cfg.trainer.device)
 
     if not cfg.database.path.exists() or cfg.regenerate:
         make_database(model=encoder, dataloader=dataloader, cfg=cfg.database)

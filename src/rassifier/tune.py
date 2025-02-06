@@ -10,9 +10,9 @@ from optuna import Trial
 from optuna.pruners import HyperbandPruner
 from optuna.samplers import QMCSampler, TPESampler
 
-from ragifier.config import Config
-from ragifier.dataset import DataLoaders
-from ragifier.train import Trainer, make_trainer, set_hyperparams
+from rassifier.config import Config
+from rassifier.dataset import DataLoaders
+from rassifier.train import Trainer, make_trainer, set_hyperparams
 
 
 class Objective:

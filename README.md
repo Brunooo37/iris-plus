@@ -1,6 +1,4 @@
-# Ragifier
-
-Efficient retrieval augmented generation (RAG) classification.
+# Rassifier: efficient infinite context retrieval-based classification
 
 ## Development installation
 
@@ -8,7 +6,7 @@ Efficient retrieval augmented generation (RAG) classification.
 conda env create -f environment.yml
 conda activate rag
 git clone https://github.com/Elliot-D-Hill/ragifier.git
-cd ragifier
+cd rassifier
 pip install -e .
 ```
 
@@ -17,5 +15,5 @@ pip install -e .
 To change the program behavior, modify the parameters in `config.toml`, then run
 
 ```bash
-python -m ragifier
+python -m rassifier
 ```

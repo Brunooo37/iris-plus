@@ -6,9 +6,10 @@ build-backend = "hatchling.build"
 name = "ragifier"
 version = "0.0.1"
 authors = [
+  { name="Elliot Hill", email="elliot.douglas.hill@gmail.com" },
   { name="Fengnan Li", email="fengnan.li@duke.edu" },
 ]
-description = "Efficient retrieval augmented generation (RAG) classification"
+description = "Efficient infinite context retrieval-based classification"
 readme = "README.md"
 requires-python = ">=3.10"
 classifiers = [
@@ -19,5 +20,5 @@ license = "MIT"
 license-files = ["LICEN[CS]E*"]
 
 [project.urls]
-Homepage = "https://github.com/fengnanli-neo/ragifier"
-Issues = "https://github.com/fengnanli-neo/ragifier/issues"
+Homepage = "https://github.com/Elliot-D-Hill/ragifier"
+Issues = "https://github.com/Elliot-D-Hill/ragifier/issues"

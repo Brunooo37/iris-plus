@@ -171,6 +171,7 @@ cython_debug/
 .pypirc
 
 data/
+models/
 .vscode/
 *.ipynb
 *.DS_Store*

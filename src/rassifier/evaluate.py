@@ -4,9 +4,9 @@ from torch.utils.data import DataLoader
 from torchmetrics import Metric
 from torchmetrics.wrappers import BootStrapper
 
-from ragifier.config import Config
-from ragifier.model import Ragifier
-from ragifier.tune import load_best_checkpoint
+from rassifier.config import Config
+from rassifier.model import Ragifier
+from rassifier.tune import load_best_checkpoint
 
 
 def get_predictions(cfg: Config, dataloader: DataLoader):

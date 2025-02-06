@@ -10,7 +10,7 @@ from sklearn.model_selection import train_test_split
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset
 
-from ragifier.config import Config
+from rassifier.config import Config
 
 
 def get_centroids(tbl: Table):

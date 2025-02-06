@@ -8,9 +8,9 @@ from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from ragifier.config import Config, TrainerConfig
-from ragifier.dataset import DataLoaders
-from ragifier.model import make_model
+from rassifier.config import Config, TrainerConfig
+from rassifier.dataset import DataLoaders
+from rassifier.model import make_model
 
 
 class Trainer:

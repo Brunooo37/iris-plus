@@ -52,7 +52,7 @@ class TrainerConfig(BaseModel):
     ignore_index: int
     eval_every_n_epochs: int
     gradient_clip: float
-    device = "cpu"
+    device: str = "cpu"
 
 
 class TunerConfig(BaseModel):
@@ -100,7 +100,7 @@ class Config(BaseModel):
     evaluator: EvaluatorConfig
 
     def model_post_init(self, __context: Any) -> None:
-        self.device = get_device()
+        self.trainer.device = get_device()
 
 
 def get_config():
