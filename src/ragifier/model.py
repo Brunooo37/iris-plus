@@ -16,7 +16,7 @@ class Ragifier(nn.Module):
         dropout: float,
         num_layers: int,
         initial_queries: torch.Tensor,
-    ):
+    ) -> None:
         super().__init__()
         self.queries = nn.Parameter(initial_queries)
         encoder_layer = nn.TransformerEncoderLayer(
@@ -27,13 +27,13 @@ class Ragifier(nn.Module):
             norm_first=True,
             batch_first=True,
         )
-        self.transformer = nn.TransformerEncoder(
+        self.encoder = nn.TransformerEncoder(
             encoder_layer=encoder_layer, num_layers=num_layers
         )
         self.fc = nn.Linear(d_model, num_classes)
 
-    def forward(self, x, src_key_padding_mask=None):
-        out = self.transformer(x, src_key_padding_mask=src_key_padding_mask)
+    def forward(self, x: torch.Tensor, padding_mask: torch.Tensor) -> torch.Tensor:
+        out = self.encoder(x, src_key_padding_mask=padding_mask)
         out = self.fc(out)
         return out
 
