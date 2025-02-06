@@ -14,7 +14,7 @@ chunk_length = 256
 overlap = 32
 
 [dataloader]
-batch_size = 8
+batch_size = 16
 pin_memory = true
 num_workers = 0
 
@@ -25,13 +25,13 @@ num_partitions = 256
 num_sub_vectors = 96
 
 [model]
-num_queries = 4
+num_queries = 8
 k_neighbors = 4
 nheads = 1
 dim_feedforward = 512
 num_layers = 1
 dropout = 0.1
-temperature = 0.05
+temperature = 0.05 # TODO currently not implemented
 query_ini_random = false
 
 [optimizer]

@@ -24,6 +24,8 @@ class Ragifier(nn.Module):
             nhead=nhead,
             dim_feedforward=dim_feedforward,
             dropout=dropout,
+            norm_first=True,
+            batch_first=True,
         )
         self.transformer = nn.TransformerEncoder(
             encoder_layer=encoder_layer, num_layers=num_layers
@@ -42,12 +44,7 @@ def get_num_classes(tbl: Table):
     return num_labels[0] if num_labels else 0
 
 
-def make_model(
-    tbl: Table,
-    vector_dim: int,
-    cfg: Config,
-    initial_queries: torch.Tensor,
-):
+def make_model(tbl: Table, vector_dim: int, initial_queries: torch.Tensor, cfg: Config):
     num_classes = get_num_classes(tbl=tbl)
     model = Ragifier(
         num_classes=num_classes,

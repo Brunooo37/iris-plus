@@ -24,7 +24,7 @@ def get_initial_queries(tbl: Table, vector_dim: int, cfg: Config):
         return torch.randn(cfg.model.num_queries, vector_dim, dtype=torch.float32)
     else:
         centroids = get_centroids(tbl=tbl)
-        # down sample centroids
+        # down sample centroids to number of queries
         indices = np.random.choice(
             np.arange(cfg.database.num_partitions),
             replace=False,
@@ -79,16 +79,19 @@ def collate_fn(batch):
     vectors, labels = zip(*batch)
     vectors = pad_sequence(vectors, batch_first=True, padding_value=0)
     labels = torch.tensor(labels)
-    return vectors, labels
+    attention_mask = (vectors.sum(dim=-1) != 0).float()
+    return vectors, labels, attention_mask
 
 
 def make_dataloaders(
     tbl: Table, vector_dim: int, initial_queries: torch.Tensor, cfg: Config
 ):
     _ = tbl.to_lance()  # type: ignore
-    df = pl.DataFrame(duckdb.sql("SELECT DISTINCT id FROM _").to_df())
+    df = duckdb.sql("SELECT DISTINCT id FROM _").to_df()
     ids = df["id"].to_numpy()
-    train, temp = train_test_split(ids, test_size=0.2, random_state=cfg.seed)
+    train, temp = train_test_split(
+        ids, test_size=0.2, shuffle=True, random_state=cfg.seed
+    )
     val, test = train_test_split(temp, test_size=0.5, random_state=cfg.seed)
     queries = initial_queries.numpy()
     dataset = partial(

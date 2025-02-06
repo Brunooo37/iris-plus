@@ -35,7 +35,7 @@ def main():
         tbl=tbl, vector_dim=vector_dim, initial_queries=initial_queries, cfg=cfg
     )  # TODO: test is unused
     model = make_model(
-        tbl=tbl, vector_dim=vector_dim, cfg=cfg, initial_queries=initial_queries
+        tbl=tbl, vector_dim=vector_dim, initial_queries=initial_queries, cfg=cfg
     )
     task = get_task(cfg.dataset.output_path.stem)
     loss_fn = nn.BCEWithLogitsLoss() if task == "binary" else nn.CrossEntropyLoss()
