@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from functools import partial
 
 import duckdb
@@ -83,6 +84,13 @@ def collate_fn(batch):
     return vectors, labels, attention_mask
 
 
+@dataclass
+class DataLoaders:
+    train: DataLoader
+    validation: DataLoader
+    test: DataLoader
+
+
 def make_dataloaders(
     tbl: Table, vector_dim: int, initial_queries: torch.Tensor, cfg: Config
 ):
@@ -99,7 +107,7 @@ def make_dataloaders(
         tbl=tbl,
         vector_dim=vector_dim,
         k_neighbors=cfg.model.k_neighbors,
-        ignore_index=cfg.ignore_index,
+        ignore_index=cfg.trainer.ignore_index,
         initial_queries=queries,
     )
     train = dataset(ids=train)
@@ -109,4 +117,4 @@ def make_dataloaders(
     train_loader = loader(train, shuffle=True)
     val_loader = loader(val)
     test_loader = loader(test)
-    return train_loader, val_loader, test_loader
+    return DataLoaders(train=train_loader, validation=val_loader, test=test_loader)

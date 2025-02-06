@@ -31,26 +31,24 @@ def main():
 
     vector_dim = tbl.schema.field("vector").type.list_size
     initial_queries = get_initial_queries(tbl=tbl, vector_dim=vector_dim, cfg=cfg)
-    train, val, test = make_dataloaders(
+    loaders = make_dataloaders(
         tbl=tbl, vector_dim=vector_dim, initial_queries=initial_queries, cfg=cfg
-    )  # TODO: test is unused
+    )
     model = make_model(
         tbl=tbl, vector_dim=vector_dim, initial_queries=initial_queries, cfg=cfg
     )
-    task = get_task(cfg.dataset.output_path.stem)
-    loss_fn = nn.BCEWithLogitsLoss() if task == "binary" else nn.CrossEntropyLoss()
-    optimizer = AdamW(model.parameters(), **cfg.optimizer.model_dump())
-    train_model(
-        model=model,
-        train_loader=train,
-        val_loader=val,
-        optimizer=optimizer,
-        loss_fn=loss_fn,
-        epochs=cfg.trainer.epochs,
-        save_path=cfg.trainer.save_path,
-        device=cfg.device,
-        task=task,
-    )
+
+    # train_model(
+    #     model=model,
+    #     train_loader=train,
+    #     val_loader=val,
+    #     optimizer=optimizer,
+    #     loss_fn=loss_fn,
+    #     epochs=cfg.trainer.epochs,
+    #     save_path=cfg.trainer.save_path,
+    #     device=cfg.device,
+    #     task=task,
+    # )
 
 
 if __name__ == "__main__":

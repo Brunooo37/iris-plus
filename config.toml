@@ -3,7 +3,7 @@ regenerate = true
 seed = 42
 # model_id = "answerdotai/ModernBERT-base"
 model_id = "bert-base-uncased"
-ignore_index = -100
+verbose = true
 
 [dataset]
 input_path =  "data/raw/hyperpartisan.csv" # "data/raw/arxiv11/data" 
@@ -39,5 +39,14 @@ lr = 1e-4
 weight_decay = 0.0001
 
 [trainer]
-epochs = 20
-save_path = "models/bert_hyperpartisan_model.pth"
+max_epochs = 20
+save_path = "models/hyperpartisan.pt"
+gradient_clip = 1.0
+ignore_index = -100
+eval_every_n_epochs = 1
+
+[tuner]
+path = "results/hyperparameters.json"
+checkpoint = "models/hyperpartisan.pt"
+n_trials = 16
+prune = false

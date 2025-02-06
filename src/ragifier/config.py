@@ -45,8 +45,24 @@ class OptimizerConfig(BaseModel):
 
 
 class TrainerConfig(BaseModel):
-    epochs: int
+    max_epochs: int
     save_path: Path
+    ignore_index: int
+    eval_every_n_epochs: int
+    gradient_clip: float
+    device = "cpu"
+
+
+class TunerConfig(BaseModel):
+    path: Path
+    checkpoint: Path
+    n_trials: int
+    prune: bool
+
+
+class HyperparameterConfig(BaseModel):
+    lr: dict
+    weight_decay: dict
 
 
 def get_device():
@@ -63,14 +79,15 @@ class Config(BaseModel):
     regenerate: bool
     seed: int
     model_id: str
-    ignore_index: int
+    verbose: bool
     dataset: DatasetConfig
     dataloader: DataloaderConfig
     database: DatabaseConfig
     model: ModelConfig
     optimizer: OptimizerConfig
     trainer: TrainerConfig
-    device: str = "cpu"
+    tuner: TunerConfig
+    hparams: HyperparameterConfig
 
     def model_post_init(self, __context: Any) -> None:
         self.device = get_device()
