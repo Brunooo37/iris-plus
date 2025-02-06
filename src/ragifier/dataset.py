@@ -79,7 +79,7 @@ def collate_fn(batch):
     vectors, labels = zip(*batch)
     vectors = pad_sequence(vectors, batch_first=True, padding_value=0)
     labels = torch.tensor(labels)
-    attention_mask = (vectors.sum(dim=-1) != 0).float()
+    attention_mask = (vectors == 0).all(dim=-1)
     return vectors, labels, attention_mask
 
 

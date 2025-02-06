@@ -32,8 +32,8 @@ class Ragifier(nn.Module):
         )
         self.fc = nn.Linear(d_model, num_classes)
 
-    def forward(self, x):
-        out = self.transformer(x)
+    def forward(self, x, src_key_padding_mask=None):
+        out = self.transformer(x, src_key_padding_mask=src_key_padding_mask)
         out = self.fc(out)
         return out
 
