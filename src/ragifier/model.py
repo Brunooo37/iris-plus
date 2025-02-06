@@ -6,6 +6,11 @@ from lancedb.table import Table
 from ragifier.config import Config
 
 
+def masked_mean_pool(input: torch.Tensor, padding_mask: torch.Tensor) -> torch.Tensor:
+    mask = ~padding_mask.unsqueeze(-1).float()
+    return (input * mask).sum(dim=1) / mask.sum(dim=1).clamp(min=1.0)
+
+
 class Ragifier(nn.Module):
     def __init__(
         self,
@@ -33,7 +38,9 @@ class Ragifier(nn.Module):
         self.fc = nn.Linear(d_model, num_classes)
 
     def forward(self, x: torch.Tensor, padding_mask: torch.Tensor) -> torch.Tensor:
+        # x: (batch_size, seq_len, d_model)
         out = self.encoder(x, src_key_padding_mask=padding_mask)
+        out = masked_mean_pool(out, padding_mask)
         out = self.fc(out)
         return out
 
