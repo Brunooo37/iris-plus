@@ -17,7 +17,7 @@ def make_arxiv11_dataset(path: Path) -> pl.DataFrame:
     ]
     df = pl.LazyFrame(rows)
     df = (
-        df.with_columns(pl.col("label").rank("dense"))
+        df.with_columns(pl.col("label").rank("dense") - 1)
         .with_row_index(name="id")
         .with_columns(cs.integer().cast(pl.Int32))
         .collect()
@@ -25,19 +25,22 @@ def make_arxiv11_dataset(path: Path) -> pl.DataFrame:
     return df
 
 
-# TODO implement
 def make_hyperpartisan_dataset(path: Path):
-    return pl.DataFrame()
+    df = pl.read_csv(path)
+    df = df.with_columns(label=pl.col("Hyperpartisan").cast(pl.Int32))
+    df = df.rename({"Article ID": "id", "Content": "text"})
+    df = df.select("id", "label", "text")
+    return df
 
 
 # TODO add other datasets
-def make_df(in_path: Path, out_path: Path) -> pl.DataFrame:
-    if out_path.name == "arxiv11":
+def make_df(in_path: Path, name: str) -> pl.DataFrame:
+    if name == "arxiv11":
         return make_arxiv11_dataset(path=in_path)
-    elif out_path.name == "hyperpartisan":
+    elif name == "hyperpartisan.parquet":
         return make_hyperpartisan_dataset(path=in_path)
     else:
-        raise ValueError(f"Unknown dataset: {out_path.name}")
+        raise ValueError(f"Unknown dataset: {name}")
 
 
 def make_chunks(text, chunk_length, overlap) -> list[str]:
@@ -52,9 +55,8 @@ def make_chunks(text, chunk_length, overlap) -> list[str]:
 def format_dataframe(df: pl.DataFrame, texts: list[str]) -> pl.DataFrame:
     return (
         df.with_columns(text=pl.Series(texts))
-        .with_columns(chunk_id=pl.int_ranges(pl.col("text").list.len()))
-        .explode("text", "chunk_id")
-        .select("id", "chunk_id", "text", "label")
+        .explode("text")
+        .select("id", "text", "label")
     )
 
 
@@ -74,7 +76,7 @@ def tokenize(batch, tokenizer, max_length) -> AutoTokenizer:
 
 
 def make_dataset(cfg: Config) -> Dataset:
-    df = make_df(in_path=cfg.dataset.input_path, out_path=cfg.dataset.output_path)
+    df = make_df(in_path=cfg.dataset.input_path, name=cfg.dataset.output_path.name)
     if cfg.fast_dev_run:
         df = df.head(10)
     df = chunk_text(df=df, cfg=cfg.dataset)

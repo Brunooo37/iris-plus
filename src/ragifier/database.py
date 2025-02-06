@@ -1,33 +1,27 @@
-import random
+from functools import partial
 
-import duckdb
 import lancedb
+import torch
+from torch.utils.data import DataLoader
+from transformers import AutoModel
 
 from ragifier.config import DatabaseConfig
-
-# TODO table.optimize()
-# TODO table.create_index(accelerator="cuda")
+from ragifier.embed import embed_text
 
 
-# TODO implement
-def make_batches():
-    pass
+def make_database(model: AutoModel, dataloader: DataLoader, cfg: DatabaseConfig):
+    db = lancedb.connect(cfg.path)
+    make_batches = partial(embed_text, model=model, dataloader=dataloader)
+    tbl = db.create_table(cfg.tbl_name, data=make_batches(), mode="overwrite")
+    tbl.create_index(
+        num_partitions=cfg.num_partitions,
+        num_sub_vectors=cfg.num_sub_vectors,
+        vector_column_name="vector",
+    )
+    tbl.create_scalar_index("id", index_type="BTREE")
 
 
-def make_database(cfg: DatabaseConfig):
-    db = lancedb.connect(cfg.database_path)
-    # schema is not required because polars already has a schema
-    table = db.create_table(cfg.table_name, data=make_batches, mode="overwrite")
-
-    table = db.open_table(cfg.table_name)
-    _ = table.to_lance()  # type: ignore
-    # this is black magic
-    df = duckdb.sql("SELECT * FROM _ LIMIT 10").to_df()
-    print(df)
-
-    # fast filtering using an index
-    table.create_scalar_index("id", index_type="BTREE")
-    # FIXME these will be a batch of sample indices
-    indices = ",".join([str(random.randint(0, 10)) for x in range(10)])
-    df = table.search().where(f"id in ({indices})").to_polars()
-    print(df)
+def get_centroids(lance_tbl):
+    vector_index = lance_tbl.index_statistics("vector_idx")
+    centroids = vector_index["indices"][0]["centroids"]
+    return torch.tensor(centroids)

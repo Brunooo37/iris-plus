@@ -22,8 +22,31 @@ class DataloaderConfig(BaseModel):
 
 
 class DatabaseConfig(BaseModel):
-    database_path: Path
-    table_name: str
+    path: Path
+    tbl_name: str
+    num_partitions: int
+    num_sub_vectors: int
+
+
+class ModelConfig(BaseModel):
+    num_queries: int
+    k_neighbors: int
+    nhead: int
+    dim_feedforward: int
+    dropout: float
+    num_layers: int
+    temperature: float
+    query_ini_random: bool
+
+
+class OptimizerConfig(BaseModel):
+    lr: float
+    weight_decay: float
+
+
+class TrainerConfig(BaseModel):
+    epochs: int
+    save_path: Path
 
 
 def get_device():
@@ -39,11 +62,15 @@ class Config(BaseModel):
     fast_dev_run: bool
     regenerate: bool
     seed: int
-    model: str
+    model_id: str
+    ignore_index: int
     dataset: DatasetConfig
     dataloader: DataloaderConfig
     database: DatabaseConfig
-    device: str | None = None
+    model: ModelConfig
+    optimizer: OptimizerConfig
+    trainer: TrainerConfig
+    device: str = "cpu"
 
     def model_post_init(self, __context: Any) -> None:
         self.device = get_device()

@@ -1,22 +1,43 @@
-fast_dev_run = true
+fast_dev_run = false
 regenerate = true
 seed = 42
-model = "bert-base-uncased"
+# model_id = "answerdotai/ModernBERT-base"
+model_id = "bert-base-uncased"
+ignore_index = -100
 
 [dataset]
-input_path = "data/raw/arxiv-11/data"
-output_path = "data/processed/arxiv11"
+input_path =  "data/raw/hyperpartisan.csv" # "data/raw/arxiv11/data" 
+output_path = "data/processed/hyperpartisan.parquet" # "data/processed/arxiv11"
 train_size = 0.8
-max_length = 512
-chunk_length = 512
+max_length = 256
+chunk_length = 256
 overlap = 32
 
 [dataloader]
-batch_size = 64
+batch_size = 8
 pin_memory = true
 num_workers = 0
 
 [database]
-database_path = "data/"
-table_name = "arxiv11"
+path = "data/db/"
+tbl_name = "hyperpartisan"
+num_partitions = 256
+num_sub_vectors = 96
 
+[model]
+num_queries = 4
+k_neighbors = 4
+nheads = 1
+dim_feedforward = 512
+num_layers = 1
+dropout = 0.1
+temperature = 0.05
+query_ini_random = false
+
+[optimizer]
+lr = 1e-4
+weight_decay = 0.0001
+
+[trainer]
+epochs = 20
+save_path = "models/bert_hyperpartisan_model.pth"

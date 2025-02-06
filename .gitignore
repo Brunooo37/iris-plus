@@ -172,4 +172,5 @@ cython_debug/
 
 data/
 .vscode/
-notebook.ipynb
+*.ipynb
+*.DS_Store*
