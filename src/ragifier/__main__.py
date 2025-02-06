@@ -1,16 +1,17 @@
 import lancedb
 import torch
-from torch import nn
-from torch.optim import AdamW
 from torch.utils.data import DataLoader
+from torchmetrics import Accuracy
 from transformers import AutoModelForTextEncoding
 
 from ragifier.config import get_config
-from ragifier.data import get_dataset, get_task
+from ragifier.data import get_dataset
 from ragifier.database import make_database
-from ragifier.dataset import get_initial_queries, make_dataloaders
-from ragifier.model import make_model
+from ragifier.dataset import get_ini_queries, make_loaders
+from ragifier.evaluate import evaluate_model
+from ragifier.model import get_num_classes
 from ragifier.train import train_model
+from ragifier.tune import tune
 
 
 def main():
@@ -20,35 +21,39 @@ def main():
     dataset = get_dataset(cfg=cfg)
     dataloader = DataLoader(dataset, **cfg.dataloader.model_dump())  # type: ignore
 
-    model = AutoModelForTextEncoding.from_pretrained(cfg.model_id)
-    model.to(cfg.device)
+    encoder = AutoModelForTextEncoding.from_pretrained(cfg.model_id)
+    encoder.to(cfg.device)
 
     if not cfg.database.path.exists() or cfg.regenerate:
-        make_database(model=model, dataloader=dataloader, cfg=cfg.database)
+        make_database(model=encoder, dataloader=dataloader, cfg=cfg.database)
 
     db = lancedb.connect(cfg.database.path)
     tbl = db.open_table(cfg.database.tbl_name)
 
-    vector_dim = tbl.schema.field("vector").type.list_size
-    initial_queries = get_initial_queries(tbl=tbl, vector_dim=vector_dim, cfg=cfg)
-    loaders = make_dataloaders(
-        tbl=tbl, vector_dim=vector_dim, initial_queries=initial_queries, cfg=cfg
-    )
-    model = make_model(
-        tbl=tbl, vector_dim=vector_dim, initial_queries=initial_queries, cfg=cfg
-    )
+    cfg.model.d_model = encoder.config.hidden_size
+    cfg.model.output_dim = get_num_classes(tbl=tbl)
 
-    # train_model(
-    #     model=model,
-    #     train_loader=train,
-    #     val_loader=val,
-    #     optimizer=optimizer,
-    #     loss_fn=loss_fn,
-    #     epochs=cfg.trainer.epochs,
-    #     save_path=cfg.trainer.save_path,
-    #     device=cfg.device,
-    #     task=task,
-    # )
+    ini_queries = get_ini_queries(tbl=tbl, cfg=cfg)
+    loaders = make_loaders(cfg=cfg, tbl=tbl, ini_queries=ini_queries)
+
+    if cfg.tune:
+        tune(cfg=cfg, loaders=loaders, tbl=tbl, ini_queries=ini_queries)
+
+    if cfg.train:
+        train_model(
+            cfg=cfg,
+            loaders=loaders,
+            tbl=tbl,
+            ini_queries=ini_queries,
+            use_best=True,
+            validate=False,
+        )
+
+    if cfg.evaluate:
+        task = "binary" if cfg.model.output_dim == 2 else "multiclass"
+        metrics = [Accuracy(task=task, num_classes=cfg.model.output_dim)]
+        results = evaluate_model(cfg=cfg, dataloader=loaders.test, metrics=metrics)
+        print(results["mean"], results["std"])
 
 
 if __name__ == "__main__":

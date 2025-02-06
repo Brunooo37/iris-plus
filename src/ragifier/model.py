@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 from lancedb.table import Table
 
-from ragifier.config import Config
+from ragifier.config import ModelConfig
 
 
 def masked_mean_pool(input: torch.Tensor, padding_mask: torch.Tensor) -> torch.Tensor:
@@ -14,16 +14,16 @@ def masked_mean_pool(input: torch.Tensor, padding_mask: torch.Tensor) -> torch.T
 class Ragifier(nn.Module):
     def __init__(
         self,
-        num_classes: int,
         d_model: int,
         nhead: int,
         dim_feedforward: int,
         dropout: float,
         num_layers: int,
-        initial_queries: torch.Tensor,
+        output_dim: int,
+        ini_queries: torch.Tensor,
     ) -> None:
         super().__init__()
-        self.queries = nn.Parameter(initial_queries)
+        self.queries = nn.Parameter(ini_queries)
         encoder_layer = nn.TransformerEncoderLayer(
             d_model=d_model,
             nhead=nhead,
@@ -35,7 +35,7 @@ class Ragifier(nn.Module):
         self.encoder = nn.TransformerEncoder(
             encoder_layer=encoder_layer, num_layers=num_layers
         )
-        self.fc = nn.Linear(d_model, num_classes)
+        self.fc = nn.Linear(d_model, output_dim)
 
     def forward(self, x: torch.Tensor, padding_mask: torch.Tensor) -> torch.Tensor:
         # x: (batch_size, seq_len, d_model)
@@ -51,16 +51,8 @@ def get_num_classes(tbl: Table):
     return num_labels[0] if num_labels else 0
 
 
-def make_model(tbl: Table, vector_dim: int, initial_queries: torch.Tensor, cfg: Config):
-    num_classes = get_num_classes(tbl=tbl)
-    model = Ragifier(
-        num_classes=num_classes,
-        d_model=vector_dim,
-        nhead=cfg.model.nhead,
-        dim_feedforward=cfg.model.dim_feedforward,
-        dropout=cfg.model.dropout,
-        num_layers=cfg.model.num_layers,
-        initial_queries=initial_queries,
-    )
-    model.to(cfg.device)
+def make_model(ini_queries: torch.Tensor, cfg: ModelConfig):
+    exclude = {"num_queries", "query_ini_random"}
+    model_config = cfg.model_dump(exclude=exclude)
+    model = Ragifier(ini_queries=ini_queries, **model_config)
     return model

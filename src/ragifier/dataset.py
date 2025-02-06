@@ -20,9 +20,9 @@ def get_centroids(tbl: Table):
     return np.array(centroids)
 
 
-def get_initial_queries(tbl: Table, vector_dim: int, cfg: Config):
+def get_ini_queries(tbl: Table, cfg: Config):
     if cfg.model.query_ini_random:
-        return torch.randn(cfg.model.num_queries, vector_dim, dtype=torch.float32)
+        return torch.randn(cfg.model.num_queries, cfg.model.d_model)
     else:
         centroids = get_centroids(tbl=tbl)
         # down sample centroids to number of queries
@@ -43,14 +43,14 @@ class TableDataset(Dataset):
         vector_dim: int,
         k_neighbors: int,
         ignore_index: int,
-        initial_queries: np.ndarray,
+        ini_queries: np.ndarray,
     ):
         self.ids = ids
         self.tbl = tbl
         self.vector_dim = vector_dim
         self.k_neighbors = k_neighbors
         self.ignore_index = ignore_index
-        self.queries = initial_queries
+        self.queries = ini_queries
 
     def __len__(self):
         return self.ids.shape[0]
@@ -91,9 +91,7 @@ class DataLoaders:
     test: DataLoader
 
 
-def make_dataloaders(
-    tbl: Table, vector_dim: int, initial_queries: torch.Tensor, cfg: Config
-):
+def make_loaders(cfg: Config, tbl: Table, ini_queries: torch.Tensor):
     _ = tbl.to_lance()  # type: ignore
     df = duckdb.sql("SELECT DISTINCT id FROM _").to_df()
     ids = df["id"].to_numpy()
@@ -101,14 +99,14 @@ def make_dataloaders(
         ids, test_size=0.2, shuffle=True, random_state=cfg.seed
     )
     val, test = train_test_split(temp, test_size=0.5, random_state=cfg.seed)
-    queries = initial_queries.numpy()
+    queries = ini_queries.numpy()
     dataset = partial(
         TableDataset,
         tbl=tbl,
-        vector_dim=vector_dim,
+        vector_dim=cfg.model.d_model,
         k_neighbors=cfg.model.k_neighbors,
         ignore_index=cfg.trainer.ignore_index,
-        initial_queries=queries,
+        ini_queries=queries,
     )
     train = dataset(ids=train)
     val = dataset(ids=val)

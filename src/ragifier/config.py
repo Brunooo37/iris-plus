@@ -31,12 +31,14 @@ class DatabaseConfig(BaseModel):
 class ModelConfig(BaseModel):
     num_queries: int
     k_neighbors: int
+    d_model: int
     nhead: int
     dim_feedforward: int
     dropout: float
     num_layers: int
-    temperature: float
+    output_dim: int
     query_ini_random: bool
+    # temperature: float
 
 
 class OptimizerConfig(BaseModel):
@@ -65,6 +67,10 @@ class HyperparameterConfig(BaseModel):
     weight_decay: dict
 
 
+class EvaluatorConfig(BaseModel):
+    n_bootstraps: int
+
+
 def get_device():
     if torch.cuda.is_available():
         return "cuda"
@@ -75,9 +81,12 @@ def get_device():
 
 
 class Config(BaseModel):
+    seed: int
     fast_dev_run: bool
     regenerate: bool
-    seed: int
+    tune: bool
+    train: bool
+    evaluate: bool
     model_id: str
     verbose: bool
     dataset: DatasetConfig
@@ -88,6 +97,7 @@ class Config(BaseModel):
     trainer: TrainerConfig
     tuner: TunerConfig
     hparams: HyperparameterConfig
+    evaluator: EvaluatorConfig
 
     def model_post_init(self, __context: Any) -> None:
         self.device = get_device()

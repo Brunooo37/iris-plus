@@ -2,6 +2,7 @@ import json
 
 import torch
 import torch.nn as nn
+from lancedb.table import Table
 from torch.nn.utils import clip_grad_norm_
 from torch.optim.adamw import AdamW
 from torch.optim.optimizer import Optimizer
@@ -10,7 +11,7 @@ from tqdm import tqdm
 
 from ragifier.config import Config, TrainerConfig
 from ragifier.dataset import DataLoaders
-from ragifier.model import Ragifier
+from ragifier.model import make_model
 
 
 class Trainer:
@@ -19,13 +20,13 @@ class Trainer:
         model: nn.Module,
         optimizer: Optimizer,
         criterion: nn.Module,
-        dataloaders: DataLoaders,
+        loaders: DataLoaders,
         cfg: TrainerConfig,
     ):
         self.model = model
         self.optimizer = optimizer
         self.criterion = criterion
-        self.dataloaders = dataloaders
+        self.loaders = loaders
         self.progress_bar = tqdm(range(cfg.max_epochs), desc="Epoch")
         self.cfg = cfg
         self.train_loss = float("inf")
@@ -49,9 +50,9 @@ class Trainer:
         for epoch in self.progress_bar:
             self.model.train()
             loss = 0
-            for inputs, labels, padding_mask in self.dataloaders.train:
+            for inputs, labels, padding_mask in self.loaders.train:
                 loss += self.train_step(inputs, labels, padding_mask)
-            loss /= len(self.dataloaders.train)
+            loss /= len(self.loaders.train)
             self.train_loss = loss
             postfix = f"Train loss: {loss:.4f}"
             if epoch % self.cfg.eval_every_n_epochs == 0:
@@ -64,12 +65,12 @@ class Trainer:
     def validate(self) -> None:
         self.model.eval()
         loss = 0
-        for inputs, labels, padding_mask in self.dataloaders.validation:
+        for inputs, labels, padding_mask in self.loaders.validation:
             inputs = inputs.to(self.cfg.device)
             labels = labels.to(self.cfg.device)
             outputs = self.model(inputs, padding_mask)
             loss += self.criterion(outputs, labels)
-        loss /= len(self.dataloaders.validation)
+        loss /= len(self.loaders.validation)
         self.validation_loss = loss
 
 
@@ -87,31 +88,43 @@ def predict(
     return predictions
 
 
-def make_trainer(cfg: Config, dataloaders: DataLoaders) -> Trainer:
-    model = Ragifier(**cfg.model.model_dump())
+def make_trainer(
+    cfg: Config, ini_queries: torch.Tensor, loaders: DataLoaders
+) -> Trainer:
+    model = make_model(ini_queries=ini_queries, cfg=cfg.model)
+    model.to(cfg.trainer.device)
     optimizer = AdamW(model.parameters(), **cfg.optimizer.model_dump())
     criterion = nn.CrossEntropyLoss()
     return Trainer(
         model=model,
         optimizer=optimizer,
         criterion=criterion,
-        dataloaders=dataloaders,
+        loaders=loaders,
         cfg=cfg.trainer,
     )
 
 
-def set_hparams(cfg: Config, lr: float, weight_decay: float) -> Config:
+def set_hyperparams(cfg: Config, lr: float, weight_decay: float) -> Config:
     cfg.optimizer.lr = lr
     cfg.optimizer.weight_decay = weight_decay
     return cfg
 
 
 def train_model(
-    dataloaders: DataLoaders, cfg: Config, use_best: bool = False, validate: bool = True
+    cfg: Config,
+    loaders: DataLoaders,
+    tbl: Table,
+    ini_queries: torch.Tensor,
+    use_best: bool = False,
+    validate: bool = True,
 ):
     if use_best:
         hyperparameters = json.load(open(cfg.tuner.path, "r"))
-        cfg = set_hparams(cfg=cfg, **hyperparameters)
-    trainer = make_trainer(cfg=cfg, dataloaders=dataloaders)
+        cfg = set_hyperparams(cfg=cfg, **hyperparameters)
+    trainer = make_trainer(
+        cfg=cfg,
+        loaders=loaders,
+        ini_queries=ini_queries,
+    )
     trainer.train(validate=validate)
     torch.save(trainer.model.state_dict(), cfg.tuner.checkpoint)

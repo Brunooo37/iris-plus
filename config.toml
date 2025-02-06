@@ -1,6 +1,10 @@
+# high-level behavior
+seed = 42
 fast_dev_run = false
 regenerate = true
-seed = 42
+tune = false
+train = false
+evaluate = false
 # model_id = "answerdotai/ModernBERT-base"
 model_id = "bert-base-uncased"
 verbose = true
@@ -27,11 +31,13 @@ num_sub_vectors = 96
 [model]
 num_queries = 8
 k_neighbors = 4
+d_model = 0 # inferred at run time
 nheads = 1
 dim_feedforward = 512
 num_layers = 1
 dropout = 0.1
-temperature = 0.05 # TODO currently not implemented
+output_dim = 0 # inferred at run time
+# temperature = 0.05 # TODO currently not implemented
 query_ini_random = false
 
 [optimizer]
@@ -50,3 +56,6 @@ path = "results/hyperparameters.json"
 checkpoint = "models/hyperpartisan.pt"
 n_trials = 16
 prune = false
+
+[evaluator]
+n_bootstraps = 1000

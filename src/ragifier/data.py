@@ -10,15 +10,6 @@ from transformers import AutoTokenizer
 from ragifier.config import Config, DatasetConfig
 
 
-def get_task(dataset: str):
-    if dataset == "arxiv11":
-        return "multiclass"
-    elif dataset == "hyperpartisan.parquet":
-        return "binary"
-    else:
-        raise ValueError(f"Unknown dataset: {dataset}")
-
-
 def make_arxiv11_dataset(path: Path) -> pl.DataFrame:
     rows = [
         {"text": path.read_text(), "label": path.parent.name}

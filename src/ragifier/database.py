@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 from transformers import AutoModel
 
 from ragifier.config import DatabaseConfig
-from ragifier.embed import embed_text
+from ragifier.encode import embed_text
 
 
 def make_database(model: AutoModel, dataloader: DataLoader, cfg: DatabaseConfig):
