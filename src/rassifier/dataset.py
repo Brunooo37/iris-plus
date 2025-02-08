@@ -5,7 +5,7 @@ import duckdb
 import numpy as np
 import polars as pl
 import torch
-from lancedb.table import Table
+from lancedb.table import LanceTable
 from sklearn.model_selection import train_test_split
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset
@@ -13,16 +13,16 @@ from torch.utils.data import DataLoader, Dataset
 from rassifier.config import Config
 
 
-def get_centroids(tbl: Table):
-    lance_tbl = tbl.to_lance()  # type: ignore
+def get_centroids(tbl: LanceTable) -> np.ndarray:
+    lance_tbl = tbl.to_lance()
     vector_index = lance_tbl.index_statistics("vector_idx")
     centroids = vector_index["indices"][0]["centroids"]
     return np.array(centroids)
 
 
-def get_ini_queries(tbl: Table, cfg: Config):
+def get_ini_queries(tbl: LanceTable, cfg: Config) -> np.ndarray:
     if cfg.model.query_ini_random:
-        return torch.randn(cfg.model.num_queries, cfg.model.d_model)
+        return np.random.randn(cfg.model.num_queries, cfg.model.d_model)
     else:
         centroids = get_centroids(tbl=tbl)
         # down sample centroids to number of queries
@@ -31,15 +31,21 @@ def get_ini_queries(tbl: Table, cfg: Config):
             replace=False,
             size=cfg.model.num_queries,
         )
-        centroids = centroids[indices]
-        return torch.tensor(centroids, dtype=torch.float32)
+        return centroids[indices]
 
 
-class TableDataset(Dataset):
+def get_num_classes(tbl: LanceTable):
+    lance_tbl = tbl.to_lance()
+    duckdb.register("lance_tbl", lance_tbl)
+    num_labels = duckdb.sql("SELECT COUNT(DISTINCT label) FROM lance_tbl").fetchone()
+    return num_labels[0] if num_labels else 0
+
+
+class LanceTableDataset(Dataset):
     def __init__(
         self,
         ids: np.ndarray,
-        tbl: Table,
+        tbl: LanceTable,
         vector_dim: int,
         k_neighbors: int,
         ignore_index: int,
@@ -56,7 +62,7 @@ class TableDataset(Dataset):
         return self.ids.shape[0]
 
     def __getitem__(self, idx):
-        dfs = []
+        dfs: list[pl.DataFrame] = []
         id = self.ids[idx]
         for query in self.queries:
             df = (
@@ -66,7 +72,7 @@ class TableDataset(Dataset):
                 .to_polars()
             )
             dfs.append(df)
-        df: pl.DataFrame = pl.concat(dfs)
+        df = pl.concat(dfs)
         if df.height == 0:
             vectors = torch.zeros(1, self.vector_dim)
             label = self.ignore_index
@@ -91,22 +97,26 @@ class DataLoaders:
     test: DataLoader
 
 
-def make_loaders(cfg: Config, tbl: Table, ini_queries: torch.Tensor):
-    _ = tbl.to_lance()  # type: ignore
-    df = duckdb.sql("SELECT DISTINCT id FROM _").to_df()
+def train_val_test_split(data: np.ndarray, seed: int):
+    train, temp = train_test_split(data, test_size=0.2, shuffle=True, random_state=seed)
+    val, test = train_test_split(temp, test_size=0.5, random_state=seed)
+    return train, val, test
+
+
+def make_loaders(cfg: Config, tbl: LanceTable):
+    lance_tbl = tbl.to_lance()
+    duckdb.register("lance_tbl", lance_tbl)
+    df = duckdb.sql("SELECT DISTINCT id FROM lance_tbl").to_df()
     ids = df["id"].to_numpy()
-    train, temp = train_test_split(
-        ids, test_size=0.2, shuffle=True, random_state=cfg.seed
-    )
-    val, test = train_test_split(temp, test_size=0.5, random_state=cfg.seed)
-    queries = ini_queries.numpy()
+    train, val, test = train_val_test_split(ids, seed=cfg.seed)
+    ini_queries = get_ini_queries(tbl=tbl, cfg=cfg)
     dataset = partial(
-        TableDataset,
+        LanceTableDataset,
         tbl=tbl,
         vector_dim=cfg.model.d_model,
-        k_neighbors=cfg.model.k_neighbors,
+        k_neighbors=cfg.database.k_neighbors,
         ignore_index=cfg.trainer.ignore_index,
-        ini_queries=queries,
+        ini_queries=ini_queries,
     )
     train = dataset(ids=train)
     val = dataset(ids=val)

@@ -1,17 +1,16 @@
-import duckdb
+import numpy as np
 import torch
 import torch.nn as nn
-from lancedb.table import Table
 
 from rassifier.config import ModelConfig
 
 
 def masked_mean_pool(input: torch.Tensor, padding_mask: torch.Tensor) -> torch.Tensor:
-    mask = ~padding_mask.unsqueeze(-1).float()
+    mask = (~padding_mask).unsqueeze(-1).float()
     return (input * mask).sum(dim=1) / mask.sum(dim=1).clamp(min=1.0)
 
 
-class Ragifier(nn.Module):
+class Rassifier(nn.Module):
     def __init__(
         self,
         d_model: int,
@@ -45,14 +44,8 @@ class Ragifier(nn.Module):
         return out
 
 
-def get_num_classes(tbl: Table):
-    _ = tbl.to_lance()  # type: ignore
-    num_labels = duckdb.sql("SELECT COUNT(DISTINCT label) FROM _").fetchone()
-    return num_labels[0] if num_labels else 0
-
-
-def make_model(ini_queries: torch.Tensor, cfg: ModelConfig):
-    exclude = {"num_queries", "query_ini_random"}
-    model_config = cfg.model_dump(exclude=exclude)
-    model = Ragifier(ini_queries=ini_queries, **model_config)
-    return model
+def make_model(ini_queries: np.ndarray, cfg: ModelConfig):
+    model_config = cfg.model_dump(exclude={"num_queries", "query_ini_random", "device"})
+    queries = torch.tensor(ini_queries, dtype=torch.float)
+    queries.to(cfg.device)
+    return Rassifier(ini_queries=queries, **model_config)

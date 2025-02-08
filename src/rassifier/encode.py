@@ -28,18 +28,15 @@ def make_batch_df(batch, model):
         attention_mask=batch["attention_mask"],
         token_type_ids=batch["token_type_ids"],
     )
-    # vector = masked_mean_pool(output, mask=batch["attention_mask"])
     batch["vector"] = output["pooler_output"]
     batch = tensors_to_numpy(batch)
-    for k, v in batch.items():
-        print(k, type(v))
     columns = ["id", "text", "label", "vector"]
     df = pl.DataFrame(batch).select(columns)
     return df
 
 
 @torch.no_grad()
-def embed_text(model: AutoModel, dataloader: DataLoader):
+def make_batches(model: AutoModel, dataloader: DataLoader):
     for batch in tqdm(dataloader):
         df = make_batch_df(batch, model)
         yield df

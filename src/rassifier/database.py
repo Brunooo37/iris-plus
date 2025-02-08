@@ -5,18 +5,20 @@ import torch
 from torch.utils.data import DataLoader
 from transformers import AutoModel
 
-from rassifier.config import DatabaseConfig
-from rassifier.encode import embed_text
+from rassifier.config import Config
+from rassifier.data import get_dataset
+from rassifier.encode import make_batches
 
 
-def make_database(model: AutoModel, dataloader: DataLoader, cfg: DatabaseConfig):
-    db = lancedb.connect(cfg.path)
-    make_batches = partial(embed_text, model=model, dataloader=dataloader)
-    tbl = db.create_table(cfg.tbl_name, data=make_batches(), mode="overwrite")
+def make_database(model: AutoModel, cfg: Config):
+    dataset = get_dataset(cfg=cfg)
+    dataloader = DataLoader(dataset, **cfg.dataloader.model_dump())  # type: ignore
+    db = lancedb.connect(cfg.database.path)
+    batch_fn = partial(make_batches, model=model, dataloader=dataloader)
+    tbl = db.create_table(cfg.database.tbl_name, data=batch_fn(), mode="overwrite")
     tbl.create_index(
-        num_partitions=cfg.num_partitions,
-        num_sub_vectors=cfg.num_sub_vectors,
-        vector_column_name="vector",
+        num_partitions=cfg.database.num_partitions,
+        num_sub_vectors=cfg.database.num_sub_vectors,
     )
     tbl.create_scalar_index("id", index_type="BTREE")
 

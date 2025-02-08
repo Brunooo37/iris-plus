@@ -2,31 +2,14 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-# encourages queries to be orthogonal
-# def query_penalty(queries, temperature):
-#     distance_matrix = torch.cdist(queries, queries, p=2)
-#     similarity_matrix = torch.exp(-distance_matrix / temperature)
-#     identity = torch.eye(queries.shape[0], device=queries.device)
-#     return torch.norm(similarity_matrix - identity, p="fro")
-
 
 # encourages queries to be far apart
-def query_penalty(query):
-    return torch.cdist(query, query, p=2).mean()
-
-
-# encourages retrieved vectors to be close to the query
-# def vector_penalty(query, vectors):
-#     return torch.cdist(query, vectors, p=2).mean()
-
-
-def loss(outputs, labels, queries, alpha):  # , beta, vectors,
+def query_penalty(queries, temperature):
     queries = F.normalize(queries, p=2, dim=-1)
-    # vectors = F.normalize(vectors, p=2, dim=-1)
-    return (
-        F.cross_entropy(outputs, labels) + alpha * query_penalty(queries)
-        # + beta * vector_penalty(query, vectors)
-    )
+    distance_matrix = torch.cdist(queries, queries, p=2)
+    similarity_matrix = torch.exp(-distance_matrix / temperature)
+    identity = torch.eye(queries.shape[0], device=queries.device)
+    return torch.norm(similarity_matrix - identity, p="fro")
 
 
 def retrival_loss(predictions, targets, queries, lambda_penalty, threshold):

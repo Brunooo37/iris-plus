@@ -5,24 +5,6 @@ from torchmetrics import Metric
 from torchmetrics.wrappers import BootStrapper
 
 from rassifier.config import Config
-from rassifier.model import Ragifier
-from rassifier.tune import load_best_checkpoint
-
-
-def get_predictions(cfg: Config, dataloader: DataLoader):
-    # FIXME: this will need more args
-    model = load_best_checkpoint(cfg=cfg, model_class=Ragifier)
-    model.eval()
-    output_batches = []
-    label_batches = []
-    for inputs, labels in dataloader:
-        inputs = inputs.to(cfg.trainer.device)
-        labels = labels.to(cfg.trainer.device)
-        with torch.no_grad():
-            outputs = model(inputs)
-        output_batches.append(outputs)
-        label_batches.append(labels)
-    return torch.cat(output_batches).cpu(), torch.cat(label_batches).cpu()
 
 
 def bootstrap_metric(
@@ -35,26 +17,36 @@ def bootstrap_metric(
     return bootstrap.compute()
 
 
+def bootstrap_metrics(cfg: Config, metrics: dict[str, Metric], n_bootstraps: int):
+    bootstrapped = {}
+    for name, metric in metrics.items():
+        bootstrapper = BootStrapper(
+            metric, num_bootstraps=n_bootstraps, mean=True, std=True, raw=True
+        )
+        bootstrapper.to(cfg.trainer.device)
+        bootstrapped[name] = bootstrapper
+    return bootstrapped
+
+
+@torch.no_grad()
 def evaluate_model(
+    model: torch.nn.Module,
     cfg: Config,
     dataloader: DataLoader,
-    metrics: list[Metric],
-    n_bootstraps: int = 0,
+    metrics: dict[str, Metric],
+    n_bootstraps: int = 1000,
 ) -> dict:
-    outputs, labels = get_predictions(cfg=cfg, dataloader=dataloader)
     results = {}
-    metrics = [metric(num_classes=cfg.model.output_dim) for metric in metrics]
-    for metric in metrics:
-        name = metric.__class__.__name__
-        if n_bootstraps:
-            results[name] = bootstrap_metric(
-                metric,
-                outputs,
-                labels,
-                n_bootstraps=cfg.evaluator.n_bootstraps,
-            )
-        else:
-            results[name] = metric(outputs, labels)
+    metrics = bootstrap_metrics(cfg, metrics, n_bootstraps)
+    for name, metric in metrics.items():
+        for inputs, labels, padding_mask in dataloader:
+            inputs = inputs.to(cfg.trainer.device)
+            labels = labels.to(cfg.trainer.device)
+            padding_mask = padding_mask.to(cfg.trainer.device)
+            outputs = model(inputs, padding_mask)
+            pred = outputs.argmax(dim=1)
+            metric.update(pred, labels)
+        results[name] = metric.compute()
     return results
 
 

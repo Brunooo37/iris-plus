@@ -26,19 +26,19 @@ class DatabaseConfig(BaseModel):
     tbl_name: str
     num_partitions: int
     num_sub_vectors: int
+    k_neighbors: int
 
 
 class ModelConfig(BaseModel):
     num_queries: int
-    k_neighbors: int
     d_model: int
     nhead: int
     dim_feedforward: int
-    dropout: float
     num_layers: int
+    dropout: float
     output_dim: int
     query_ini_random: bool
-    # temperature: float
+    device: str = "cpu"
 
 
 class OptimizerConfig(BaseModel):
@@ -52,6 +52,7 @@ class TrainerConfig(BaseModel):
     ignore_index: int
     eval_every_n_epochs: int
     gradient_clip: float
+    temperature: float
     device: str = "cpu"
 
 
@@ -63,6 +64,8 @@ class TunerConfig(BaseModel):
 
 
 class HyperparameterConfig(BaseModel):
+    max_epochs: dict
+    temperature: dict
     lr: dict
     weight_decay: dict
 
@@ -100,7 +103,9 @@ class Config(BaseModel):
     evaluator: EvaluatorConfig
 
     def model_post_init(self, __context: Any) -> None:
-        self.trainer.device = get_device()
+        device = get_device()
+        self.trainer.device = device
+        self.model.device = device
 
 
 def get_config():

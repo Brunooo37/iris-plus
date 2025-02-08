@@ -5,7 +5,6 @@ from typing import Callable
 import optuna
 import torch
 import torch.nn as nn
-from lancedb.table import Table
 from optuna import Trial
 from optuna.pruners import HyperbandPruner
 from optuna.samplers import QMCSampler, TPESampler
@@ -23,6 +22,8 @@ class Objective:
 
     def sample_hyperparameters(self, trial: optuna.Trial):
         return {
+            "max_epochs": trial.suggest_int(**self.cfg.hparams.max_epochs),
+            "temperature": trial.suggest_float(**self.cfg.hparams.temperature),
             "lr": trial.suggest_float(**self.cfg.hparams.lr),
             "weight_decay": trial.suggest_float(**self.cfg.hparams.weight_decay),
         }
@@ -61,10 +62,8 @@ def make_study(cfg: Config, sampler: optuna.samplers.BaseSampler) -> optuna.stud
     )
 
 
-def tune(cfg: Config, loaders: DataLoaders, tbl: Table, ini_queries: torch.Tensor):
-    trainer_fn = partial(
-        make_trainer, cfg=cfg, ini_queries=ini_queries, loaders=loaders
-    )
+def tune(cfg: Config, loaders: DataLoaders):
+    trainer_fn = partial(make_trainer, cfg=cfg, loaders=loaders)
     objective = Objective(cfg=cfg, trainer_fn=trainer_fn)
     half_trials = cfg.tuner.n_trials // 2
     sampler = QMCSampler(seed=cfg.seed)
@@ -84,7 +83,9 @@ def load_best_checkpoint(cfg: Config, model_class: type[nn.Module]) -> nn.Module
     with open(cfg.tuner.path, "r") as f:
         hyperparams = json.load(f)
     cfg = set_hyperparams(cfg=cfg, **hyperparams)
-    model: nn.Module = model_class(**cfg.model.model_dump())
+    exclude = {"num_queries", "query_ini_random", "device"}
+    model_config = cfg.model.model_dump(exclude=exclude)
+    model: nn.Module = model_class(**model_config, ini_queries=model_weights["queries"])
     model.load_state_dict(model_weights)
     model.to(cfg.trainer.device)
     return model
