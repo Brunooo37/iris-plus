@@ -30,20 +30,19 @@ def main():
     tbl = cast(lancedb.table.LanceTable, tbl)
 
     cfg.model.output_dim = get_num_classes(tbl=tbl)
-
-    loaders = make_loaders(cfg=cfg, tbl=tbl)
+    cfg.task = "binary" if cfg.model.output_dim == 2 else "multiclass"
 
     if cfg.tune:
-        tune(cfg=cfg, loaders=loaders)
+        tune(cfg=cfg, tbl=tbl)
 
     if cfg.train:
-        train_model(cfg=cfg, loaders=loaders, use_best=False, validate=True)
+        loaders = make_loaders(cfg=cfg, tbl=tbl)
+        train_model(cfg=cfg, tbl=tbl, use_best=False)
 
     if cfg.evaluate:
-        task = "binary" if cfg.model.output_dim == 2 else "multiclass"
         metrics = {
             "accuracy": Accuracy(
-                task=task,
+                task=cfg.task,
                 num_classes=cfg.model.output_dim,
                 ignore_index=cfg.trainer.ignore_index,
             )

@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from rassifier.config import ModelConfig
 
@@ -42,6 +43,32 @@ class Rassifier(nn.Module):
         out = masked_mean_pool(out, padding_mask)
         out = self.fc(out)
         return out
+
+
+class RassifierSDPA(nn.Module):
+    def __init__(self, num_queries, embedding_dim, hidden_layer, num_labels, p=0.1):
+        super().__init__()
+        queries = torch.randn(1, num_queries, embedding_dim)
+        queries = torch.nested.nested_tensor(queries, layout=torch.jagged)
+        self.queries = nn.Parameter(queries)
+        self.mlp = nn.Sequential(
+            nn.LayerNorm(embedding_dim),
+            nn.Linear(embedding_dim, hidden_layer),
+            nn.SiLU(),
+            nn.Linear(hidden_layer, num_labels),
+        )
+        self.p = p
+
+    def forward(self, retrieved):  # (batch_size, num_neighbors, dim)
+        x = F.scaled_dot_product_attention(
+            query=self.queries,
+            key=retrieved,
+            value=retrieved,
+            dropout_p=(self.p if self.training else 0.0),
+        )  # (batch_size, num_queries, dim)
+        x = x.mean(dim=1)  # (batch_size, dim)
+        x = self.mlp(x)  # (batch_size, num_labels)
+        return x
 
 
 def make_model(ini_queries: np.ndarray, cfg: ModelConfig):

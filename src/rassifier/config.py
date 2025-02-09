@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import tomllib
 import torch
@@ -101,6 +101,7 @@ class Config(BaseModel):
     tuner: TunerConfig
     hparams: HyperparameterConfig
     evaluator: EvaluatorConfig
+    task: Literal["binary", "multiclass"] = "binary"
 
     def model_post_init(self, __context: Any) -> None:
         device = get_device()

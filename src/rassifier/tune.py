@@ -5,19 +5,19 @@ from typing import Callable
 import optuna
 import torch
 import torch.nn as nn
+from lancedb.table import LanceTable
 from optuna import Trial
 from optuna.pruners import HyperbandPruner
 from optuna.samplers import QMCSampler, TPESampler
 
 from rassifier.config import Config
-from rassifier.dataset import DataLoaders
 from rassifier.train import Trainer, make_trainer, set_hyperparams
 
 
 class Objective:
     def __init__(self, cfg: Config, trainer_fn: Callable) -> None:
         self.cfg = cfg
-        self.best_validation_loss = float("inf")
+        self.best_value = 0.0
         self.trainer_fn = trainer_fn
 
     def sample_hyperparameters(self, trial: optuna.Trial):
@@ -32,13 +32,13 @@ class Objective:
         hyperparams = self.sample_hyperparameters(trial=trial)
         cfg = set_hyperparams(cfg=self.cfg, **hyperparams)
         trainer: Trainer = self.trainer_fn()
-        trainer.train(validate=True)
-        if trainer.validation_loss < self.best_validation_loss:
-            self.best_validation_loss = trainer.validation_loss
+        trainer.train()
+        if trainer.value < self.best_value:
+            self.best_value = trainer.val_loss
             with open(self.cfg.tuner.path, "w") as f:
                 json.dump(hyperparams, f)
             torch.save(trainer.model.state_dict(), cfg.tuner.checkpoint)
-        return trainer.validation_loss
+        return trainer.value
 
 
 def make_study(cfg: Config, sampler: optuna.samplers.BaseSampler) -> optuna.study.Study:
@@ -57,13 +57,13 @@ def make_study(cfg: Config, sampler: optuna.samplers.BaseSampler) -> optuna.stud
         storage=storage,
         sampler=sampler,
         pruner=pruner,
-        direction="minimize",
+        direction="maximize",
         study_name="tune",
     )
 
 
-def tune(cfg: Config, loaders: DataLoaders):
-    trainer_fn = partial(make_trainer, cfg=cfg, loaders=loaders)
+def tune(cfg: Config, tbl: LanceTable):
+    trainer_fn = partial(make_trainer, cfg=cfg, tbl=tbl)
     objective = Objective(cfg=cfg, trainer_fn=trainer_fn)
     half_trials = cfg.tuner.n_trials // 2
     sampler = QMCSampler(seed=cfg.seed)

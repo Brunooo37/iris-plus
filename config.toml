@@ -32,12 +32,11 @@ k_neighbors = 4
 num_queries = 32
 d_model = 0 # inferred at run time
 nhead = 1
-dim_feedforward = 512
+dim_feedforward = 256
 num_layers = 1
 dropout = 0.1
 output_dim = 0 # inferred at run time
 query_ini_random = false
-# temperature = 0.05 # TODO currently not implemented
 
 [optimizer]
 lr = 1e-4
@@ -54,18 +53,18 @@ temperature = 1.0
 [tuner]
 path = "models/hyperparameters.json"
 checkpoint = "models/hyperpartisan.pt"
-n_trials = 32
+n_trials = 10
 prune = false
 
 [hparams]
 [hparams.max_epochs]
 name = "max_epochs"
-low = 3
-high = 10
+low = 2
+high = 8
 [hparams.lr]
 name = "lr"
 low = 1e-5
-high = 1e-4
+high = 1e-3
 [hparams.weight_decay]
 name = "weight_decay"
 low = 1e-5

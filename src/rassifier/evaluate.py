@@ -47,6 +47,7 @@ def evaluate_model(
             pred = outputs.argmax(dim=1)
             metric.update(pred, labels)
         results[name] = metric.compute()
+        metric.reset()
     return results
 
 

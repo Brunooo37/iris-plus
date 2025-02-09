@@ -90,6 +90,15 @@ def collate_fn(batch):
     return vectors, labels, attention_mask
 
 
+# Requires torch>= 2.6.0
+def nested_collate_fn(batch):
+    vectors, labels = zip(*batch)
+    vectors = torch.nested.nested_tensor(vectors, layout=torch.jagged)
+    labels = torch.tensor(labels)
+    attention_mask = (vectors == 0).all(dim=-1)
+    return vectors, labels, attention_mask
+
+
 @dataclass
 class DataLoaders:
     train: DataLoader

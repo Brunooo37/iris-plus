@@ -2,14 +2,16 @@ import json
 
 import torch
 import torch.nn as nn
+from lancedb.table import LanceTable
 from torch.nn.utils import clip_grad_norm_
 from torch.optim.adamw import AdamW
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
+from torchmetrics import Accuracy, Metric
 from tqdm import tqdm
 
 from rassifier.config import Config, TrainerConfig
-from rassifier.dataset import DataLoaders
+from rassifier.dataset import DataLoaders, make_loaders
 from rassifier.loss import query_penalty
 from rassifier.model import Rassifier, make_model
 
@@ -17,10 +19,11 @@ from rassifier.model import Rassifier, make_model
 class Trainer:
     def __init__(
         self,
+        loaders: DataLoaders,
         model: Rassifier,
         optimizer: Optimizer,
         criterion: nn.Module,
-        loaders: DataLoaders,
+        metric: Metric,
         cfg: TrainerConfig,
     ):
         self.model = model
@@ -30,7 +33,9 @@ class Trainer:
         self.progress_bar = tqdm(range(cfg.max_epochs), desc="Epoch")
         self.cfg = cfg
         self.train_loss = float("inf")
-        self.validation_loss = float("inf")
+        self.val_loss = float("inf")
+        self.value = 0.0
+        self.metric = metric
 
     def train_step(
         self, inputs: torch.Tensor, labels: torch.Tensor, padding_mask: torch.Tensor
@@ -47,14 +52,13 @@ class Trainer:
         self.optimizer.step()
         return loss
 
-    def train(self, validate: bool = True) -> None:
+    def train(self) -> None:
         self.model.to(self.cfg.device)
         for epoch in self.progress_bar:
             self.model.train()
             loss = 0
             for inputs, labels, padding_mask in self.loaders.train:
                 loss += self.train_step(inputs, labels, padding_mask)
-
                 train_queries = self.model.queries.detach().cpu().numpy()
                 self.loaders.train.dataset.queries = train_queries  # type: ignore
             loss /= len(self.loaders.train)
@@ -63,9 +67,8 @@ class Trainer:
             val_queries = self.model.queries.detach().cpu().numpy()
             self.loaders.validation.dataset.queries = val_queries  # type: ignore
             if epoch % self.cfg.eval_every_n_epochs == 0:
-                if validate:
-                    self.validate()
-                    postfix += f", Val loss: {self.validation_loss:.4f}"
+                self.validate()
+                postfix += f", Val loss: {self.val_loss:.4f}, Acc: {self.value:.4f}"
             self.progress_bar.set_postfix_str(postfix)
         test_queries = self.model.queries.detach().cpu().numpy()
         self.loaders.test.dataset.queries = test_queries  # type: ignore
@@ -80,11 +83,15 @@ class Trainer:
             padding_mask = padding_mask.to(self.cfg.device)
             outputs = self.model(inputs, padding_mask)
             loss += self.criterion(outputs, labels)
+            preds = outputs.argmax(dim=1)
+            self.metric.update(preds, labels)
         loss /= len(self.loaders.validation)
-        self.validation_loss = loss
+        self.val_loss = loss
+        self.value = self.metric.compute().item()
+        self.metric.reset()
 
 
-@torch.no_grad()
+@torch.inference_mode()
 def predict(
     model: nn.Module, dataloader: DataLoader, device: str | torch.device
 ) -> list[torch.Tensor]:
@@ -99,17 +106,25 @@ def predict(
     return predictions
 
 
-def make_trainer(cfg: Config, loaders: DataLoaders) -> Trainer:
+def make_trainer(cfg: Config, tbl: LanceTable) -> Trainer:
+    loaders = make_loaders(cfg=cfg, tbl=tbl)
     ini_queries = loaders.train.dataset.queries  # type: ignore
     model = make_model(ini_queries=ini_queries, cfg=cfg.model)
     model.to(cfg.trainer.device)
     optimizer = AdamW(model.parameters(), **cfg.optimizer.model_dump(), fused=True)
     criterion = nn.CrossEntropyLoss(ignore_index=cfg.trainer.ignore_index)
+    metric = Accuracy(
+        task=cfg.task,
+        num_classes=cfg.model.output_dim,
+        ignore_index=cfg.trainer.ignore_index,
+    )
+    metric.to(cfg.trainer.device)
     return Trainer(
+        loaders=loaders,
         model=model,
         optimizer=optimizer,
         criterion=criterion,
-        loaders=loaders,
+        metric=metric,
         cfg=cfg.trainer,
     )
 
@@ -125,15 +140,10 @@ def set_hyperparams(
     return cfg
 
 
-def train_model(
-    cfg: Config,
-    loaders: DataLoaders,
-    use_best: bool = False,
-    validate: bool = True,
-):
+def train_model(cfg: Config, tbl: LanceTable, use_best: bool = False):
     if use_best:
         hyperparameters = json.load(open(cfg.tuner.path, "r"))
         cfg = set_hyperparams(cfg=cfg, **hyperparameters)
-    trainer = make_trainer(cfg=cfg, loaders=loaders)
-    trainer.train(validate=validate)
+    trainer = make_trainer(cfg=cfg, tbl=tbl)
+    trainer.train()
     torch.save(trainer.model.state_dict(), cfg.tuner.checkpoint)
