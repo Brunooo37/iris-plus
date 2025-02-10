@@ -1,10 +1,12 @@
 import polars as pl
 import torch
 from torch.utils.data import DataLoader
-from torchmetrics import Metric
+from torchmetrics import Accuracy, Metric
 from torchmetrics.wrappers import BootStrapper
 
 from rassifier.config import Config
+from rassifier.model import Rassifier
+from rassifier.tune import load_best_checkpoint
 
 
 def bootstrap_metric(
@@ -30,12 +32,18 @@ def bootstrap_metrics(cfg: Config, metrics: dict[str, Metric], n_bootstraps: int
 
 @torch.no_grad()
 def evaluate_model(
-    model: torch.nn.Module,
     cfg: Config,
     dataloader: DataLoader,
-    metrics: dict[str, Metric],
     n_bootstraps: int = 1000,
 ) -> dict:
+    metrics = {
+        "accuracy": Accuracy(
+            task=cfg.task,
+            num_classes=cfg.model.output_dim,
+            ignore_index=cfg.trainer.ignore_index,
+        )
+    }
+    model = load_best_checkpoint(cfg=cfg, model_class=Rassifier)
     results = {}
     metrics = bootstrap_metrics(cfg, metrics, n_bootstraps)
     for name, metric in metrics.items():
@@ -48,7 +56,11 @@ def evaluate_model(
             metric.update(pred, labels)
         results[name] = metric.compute()
         metric.reset()
-    return results
+    return {
+        "mean": results["accuracy"]["mean"].item(),
+        "std": results["accuracy"]["std"].item(),
+    }
+    return
 
 
 # TODO generate metrics for subsets of the data

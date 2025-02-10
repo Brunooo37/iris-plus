@@ -7,8 +7,9 @@ from pydantic import BaseModel
 
 
 class DatasetConfig(BaseModel):
-    input_path: Path
-    output_path: Path
+    in_path: Path
+    inter_path: Path
+    out_path: Path
     train_size: float
     max_length: int
     chunk_length: int
@@ -23,7 +24,6 @@ class DataloaderConfig(BaseModel):
 
 class DatabaseConfig(BaseModel):
     path: Path
-    tbl_name: str
     num_partitions: int
     num_sub_vectors: int
     k_neighbors: int
@@ -72,6 +72,7 @@ class HyperparameterConfig(BaseModel):
 
 class EvaluatorConfig(BaseModel):
     n_bootstraps: int
+    path: Path
 
 
 def get_device():

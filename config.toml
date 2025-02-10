@@ -1,16 +1,17 @@
 # high-level behavior
 seed = 42
 fast_dev_run = false
-regenerate = false
-tune = true
-train = true
-evaluate = true
+regenerate = true
+tune = false
+train = false
+evaluate = false
 model_id = "bert-base-uncased"
 verbose = true
 
 [dataset]
-input_path =  "data/raw/hyperpartisan.csv" # "data/raw/arxiv11/data" 
-output_path = "data/processed/hyperpartisan.parquet" # "data/processed/arxiv11"
+in_path =  "data/raw/" # "data/raw/arxiv11/data" 
+inter_path = "data/intermediate/" # "data/intermediate/arxiv11"
+out_path = "data/processed/" # "data/processed/arxiv11"
 train_size = 0.8
 max_length = 128
 chunk_length = 128
@@ -23,7 +24,6 @@ num_workers = 0
 
 [database]
 path = "data/db/"
-tbl_name = "hyperpartisan"
 num_partitions = 256
 num_sub_vectors = 96
 k_neighbors = 4
@@ -75,5 +75,6 @@ low = 0.1
 high = 2.0
 
 [evaluator]
+path = "data/results.parquet"
 n_bootstraps = 100
 
