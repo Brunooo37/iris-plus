@@ -19,7 +19,7 @@ def make_arxiv11_dataset(path: Path) -> pl.DataFrame:
     include = ["cs.AI", "cs.DS", "cs.PL"]  # "cs.IT" is missing
     df = (
         df.filter(pl.col("label").is_in(include))
-        .with_columns(pl.col("label").rank("dense") - 1)
+        .with_columns((pl.col("label").rank("dense") - 1).cast(pl.Int32))
         .with_row_index(name="id")
         .with_columns(cs.integer().cast(pl.Int32))
         .collect()
