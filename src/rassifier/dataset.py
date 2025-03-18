@@ -74,7 +74,7 @@ class LanceTableDataset(Dataset):
             dfs.append(df)
         df = pl.concat(dfs)
         if df.height == 0:
-            vectors = torch.zeros(1, self.vector_dim)
+            vectors = torch.ones(1, self.vector_dim)
             label = self.ignore_index
         else:
             vectors = df["vector"].to_torch()
@@ -86,16 +86,7 @@ def collate_fn(batch):
     vectors, labels = zip(*batch)
     vectors = pad_sequence(vectors, batch_first=True, padding_value=0)
     labels = torch.tensor(labels)
-    attention_mask = (vectors == 0).all(dim=-1)
-    return vectors, labels, attention_mask
-
-
-# Requires torch>= 2.6.0
-def nested_collate_fn(batch):
-    vectors, labels = zip(*batch)
-    vectors = torch.nested.nested_tensor(vectors, layout=torch.jagged)
-    labels = torch.tensor(labels)
-    attention_mask = (vectors == 0).all(dim=-1)
+    attention_mask = (vectors != 0).all(dim=-1)
     return vectors, labels, attention_mask
 
 
@@ -131,7 +122,7 @@ def make_loaders(cfg: Config, tbl: LanceTable):
     val = dataset(ids=val)
     test = dataset(ids=test)
     loader = partial(DataLoader, **cfg.dataloader.model_dump(), collate_fn=collate_fn)
-    train_loader = loader(train, shuffle=True)
+    train_loader = loader(train, shuffle=True, drop_last=True)
     val_loader = loader(val)
     test_loader = loader(test)
     return DataLoaders(train=train_loader, validation=val_loader, test=test_loader)

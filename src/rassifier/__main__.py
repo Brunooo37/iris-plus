@@ -3,7 +3,7 @@ from typing import cast
 import lancedb
 import polars as pl
 import torch
-from transformers import AutoModelForTextEncoding
+from transformers import AutoModel
 
 from rassifier.config import get_config
 from rassifier.data import get_dataset
@@ -18,12 +18,12 @@ def main():
     cfg = get_config()
     torch.manual_seed(cfg.seed)
 
-    encoder = AutoModelForTextEncoding.from_pretrained(cfg.model_id)
+    encoder = AutoModel.from_pretrained(cfg.model_id)
     encoder.to(cfg.model.device)
     cfg.model.d_model = encoder.config.hidden_size
 
-    in_files = ["hyperpartisan.csv", "arxiv11/data", "IMDB_Dataset.csv"]
-    out_files = ["hyperpartisan.parquet", "arxiv11.parquet", "imdb_dataset.parquet"]
+    in_files = ["hyperpartisan.csv"]  # "arxiv11/data", "IMDB_Dataset.csv"
+    out_files = ["hyperpartisan.parquet"]  # , "arxiv11.parquet", "imdb_dataset.parquet"
     results = []
     for in_file, out_file in zip(in_files, out_files):
         tbl_name = out_file.split(".")[0]

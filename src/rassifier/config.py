@@ -34,7 +34,6 @@ class ModelConfig(BaseModel):
     d_model: int
     nhead: int
     dim_feedforward: int
-    num_layers: int
     dropout: float
     output_dim: int
     query_ini_random: bool

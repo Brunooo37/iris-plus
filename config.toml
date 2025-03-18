@@ -1,17 +1,16 @@
-# high-level behavior
 seed = 42
 fast_dev_run = false
 regenerate = true
 tune = false
-train = false
+train = true
 evaluate = false
-model_id = "bert-base-uncased"
+model_id = "answerdotai/ModernBERT-large"
 verbose = true
 
 [dataset]
-in_path =  "data/raw/" # "data/raw/arxiv11/data" 
-inter_path = "data/intermediate/" # "data/intermediate/arxiv11"
-out_path = "data/processed/" # "data/processed/arxiv11"
+in_path = "data/raw/"
+inter_path = "data/intermediate/"
+out_path = "data/processed/"
 train_size = 0.8
 max_length = 128
 chunk_length = 128
@@ -26,24 +25,23 @@ num_workers = 0
 path = "data/db/"
 num_partitions = 256
 num_sub_vectors = 96
-k_neighbors = 4
+k_neighbors = 8
 
 [model]
-num_queries = 32
-d_model = 0 # inferred at run time
+num_queries = 16
+d_model = 0              # inferred at run time
 nhead = 1
 dim_feedforward = 256
-num_layers = 1
 dropout = 0.1
-output_dim = 0 # inferred at run time
+output_dim = 0           # inferred at run time
 query_ini_random = false
 
 [optimizer]
 lr = 1e-4
-weight_decay = 0.0001
+weight_decay = 1e-2
 
 [trainer]
-max_epochs = 3
+max_epochs = 20
 save_path = "models/hyperpartisan.pt"
 gradient_clip = 1.0
 ignore_index = -100
@@ -77,4 +75,3 @@ high = 2.0
 [evaluator]
 path = "data/results.parquet"
 n_bootstraps = 100
-

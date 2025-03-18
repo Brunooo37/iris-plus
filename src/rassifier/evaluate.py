@@ -5,7 +5,7 @@ from torchmetrics import Accuracy, Metric
 from torchmetrics.wrappers import BootStrapper
 
 from rassifier.config import Config
-from rassifier.model import Rassifier
+from rassifier.model import IRIS
 from rassifier.tune import load_best_checkpoint
 
 
@@ -43,7 +43,7 @@ def evaluate_model(
             ignore_index=cfg.trainer.ignore_index,
         )
     }
-    model = load_best_checkpoint(cfg=cfg, model_class=Rassifier)
+    model = load_best_checkpoint(cfg=cfg, model_class=IRIS)
     results = {}
     metrics = bootstrap_metrics(cfg, metrics, n_bootstraps)
     for name, metric in metrics.items():
@@ -60,7 +60,6 @@ def evaluate_model(
         "mean": results["accuracy"]["mean"].item(),
         "std": results["accuracy"]["std"].item(),
     }
-    return
 
 
 # TODO generate metrics for subsets of the data
