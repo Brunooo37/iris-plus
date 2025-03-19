@@ -11,10 +11,9 @@ from torch.utils.data import DataLoader
 from torchmetrics import Accuracy, Metric
 from tqdm import tqdm
 
-from rassifier.config import Config, TrainerConfig
-from rassifier.dataset import DataLoaders, make_loaders
-from rassifier.loss import query_penalty
-from rassifier.model import IRIS, make_model
+from iris.config import Config, TrainerConfig
+from iris.dataset import DataLoaders, make_loaders
+from iris.model import IRIS, make_model
 
 
 class Trainer:
@@ -49,7 +48,7 @@ class Trainer:
         padding_mask = padding_mask.to(self.cfg.device)
         outputs = self.model(inputs, padding_mask)
         loss = self.criterion(outputs, labels)
-        loss += query_penalty(queries=self.model.queries, threshold=0.1)
+        # loss += query_penalty(queries=self.model.queries, threshold=threshold)
         loss.backward()
         clip_grad_norm_(self.model.parameters(), max_norm=self.cfg.gradient_clip)
         self.optimizer.step()
@@ -66,19 +65,21 @@ class Trainer:
         self.progress_bar.set_postfix_str(postfix)
         self.progress_bar.update()
 
+    def train_epoch(self) -> None:
+        self.model.train()
+        loss = 0.0
+        for inputs, labels, padding_mask in self.loaders.train:
+            loss += self.train_step(inputs, labels, padding_mask)
+        loss /= len(self.loaders.train)
+        self.train_loss = loss
+        self.validate()
+        self.scheduler.step()
+        self.update_progress_bar()
+
     def train(self) -> None:
         self.model.to(self.cfg.device)
         for epoch in self.progress_bar:
-            self.model.train()
-            loss = 0.0
-            for inputs, labels, padding_mask in self.loaders.train:
-                loss += self.train_step(inputs, labels, padding_mask)
-            loss /= len(self.loaders.train)
-            self.train_loss = loss
-            self.validate()
-            self.scheduler.step()
-            self.update_progress_bar()
-
+            self.train_epoch()
         self.progress_bar.close()
         queries = self.model.queries.detach().cpu().numpy()
         self.loaders.test.dataset.queries = queries  # type: ignore

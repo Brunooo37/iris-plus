@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from rassifier.config import ModelConfig
+from iris.config import ModelConfig
 
 
 class IRIS(nn.Module):
@@ -18,8 +18,6 @@ class IRIS(nn.Module):
     ) -> None:
         super().__init__()
         self.queries = nn.Parameter(ini_queries)
-        self.query_norm = nn.LayerNorm(d_model)
-        self.norm = nn.LayerNorm(d_model)
         self.mlp = nn.Sequential(
             nn.LayerNorm(d_model),
             nn.Linear(d_model, dim_feedforward),
@@ -44,8 +42,6 @@ class IRIS(nn.Module):
         # (batch_size, 1, 1, seq_len)
         attn_mask = padding_mask.view(B, 1, 1, L)
         # (batch_size, nhead, num_queries, head_dim)
-        queries = self.query_norm(queries)
-        x = self.norm(x)
         out = F.scaled_dot_product_attention(
             query=queries,
             key=x,

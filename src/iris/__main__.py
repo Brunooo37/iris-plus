@@ -5,13 +5,13 @@ import polars as pl
 import torch
 from transformers import AutoModel
 
-from rassifier.config import get_config
-from rassifier.data import get_dataset
-from rassifier.database import make_database
-from rassifier.dataset import get_num_classes, make_loaders
-from rassifier.evaluate import evaluate_model
-from rassifier.train import train_model
-from rassifier.tune import tune
+from iris.config import get_config
+from iris.data import get_dataset
+from iris.database import make_database
+from iris.dataset import get_num_classes, make_loaders
+from iris.evaluate import evaluate_model
+from iris.train import train_model
+from iris.tune import tune
 
 
 def main():

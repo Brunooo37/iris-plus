@@ -7,7 +7,7 @@ import polars.selectors as cs
 from datasets import Dataset, load_from_disk
 from transformers import AutoTokenizer
 
-from rassifier.config import Config, DatasetConfig
+from iris.config import Config, DatasetConfig
 
 
 def make_arxiv11_dataset(path: Path) -> pl.DataFrame:
@@ -16,7 +16,7 @@ def make_arxiv11_dataset(path: Path) -> pl.DataFrame:
         for path in path.rglob("*.txt")
     ]
     df = pl.LazyFrame(rows)
-    include = ["cs.AI", "cs.DS", "cs.PL"]  # "cs.IT" is missing
+    include = ["cs.AI", "cs.DS", "cs.PL"]
     df = (
         df.filter(pl.col("label").is_in(include))
         .with_columns((pl.col("label").rank("dense") - 1).cast(pl.Int32))
@@ -44,7 +44,7 @@ def make_imdb_dataset(path: Path):
     return df
 
 
-def get_make_df_fn(name: str) -> Callable[[Path], pl.DataFrame]:
+def get_df_fn(name: str) -> Callable[[Path], pl.DataFrame]:
     match name:
         case "arxiv11/data":
             return make_arxiv11_dataset
@@ -67,11 +67,10 @@ def make_chunks(text, chunk_length, overlap) -> list[str]:
 
 
 def format_dataframe(df: pl.DataFrame, texts: list[str]) -> pl.DataFrame:
-    return (
-        df.with_columns(text=pl.Series(texts))
-        .explode("text")
-        .select("id", "text", "label")
-    )
+    df = df.with_columns(text=pl.Series(texts))
+    df = df.with_row_index(name="chunk_id")
+    df = df.explode("text").select("id", "chunk_id", "label", "text")
+    return df
 
 
 # FIXME need to chunk tokens, not text
@@ -93,10 +92,9 @@ def tokenize(batch, tokenizer, max_length) -> AutoTokenizer:
 def make_dataset(df: pl.DataFrame, cfg: Config) -> Dataset:
     if cfg.fast_dev_run:
         df = df.head(10)
-    # FIXME need to chunk tokens, not text
     df = chunk_text(df=df, cfg=cfg.dataset)
     dataset = Dataset.from_polars(df)
-    tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+    tokenizer = AutoTokenizer.from_pretrained(cfg.model_id)
     tokenize_fn = partial(
         tokenize, tokenizer=tokenizer, max_length=cfg.dataset.max_length
     )
@@ -106,7 +104,7 @@ def make_dataset(df: pl.DataFrame, cfg: Config) -> Dataset:
 
 def get_dataset(in_file: str, out_file: str, cfg: Config) -> Dataset:
     if not cfg.dataset.out_path.exists() or cfg.regenerate:
-        make_df = get_make_df_fn(name=in_file)
+        make_df = get_df_fn(name=in_file)
         df = make_df(cfg.dataset.in_path / in_file).select("id", "label", "text")
         df.write_parquet(cfg.dataset.inter_path / out_file)
         dataset = make_dataset(df=df, cfg=cfg)

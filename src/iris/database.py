@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import AutoModel
 
-from rassifier.config import Config
+from iris.config import Config
 
 
 def masked_mean_pool(output: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
@@ -32,7 +32,7 @@ def make_batch_df(batch, model):
     output = model(input_ids=batch["input_ids"], attention_mask=batch["attention_mask"])
     batch["vector"] = masked_mean_pool(output, batch["attention_mask"])
     batch = tensors_to_numpy(batch)
-    columns = ["id", "text", "label", "vector"]
+    columns = ["id", "chunk_id", "text", "label", "vector"]
     df = pl.DataFrame(batch).select(columns)
     return df
 
@@ -50,6 +50,7 @@ def make_database(tbl_name: str, dataset, model: AutoModel, cfg: Config):
     batch_fn = partial(make_batches, model=model, dataloader=dataloader)
     tbl = db.create_table(tbl_name, data=batch_fn(), mode="overwrite")
     tbl.create_scalar_index("id", index_type="BTREE")
+    tbl.create_scalar_index("chunk_id", index_type="BITMAP")
     tbl.create_index(
         num_partitions=cfg.database.num_partitions,
         num_sub_vectors=cfg.database.num_sub_vectors,

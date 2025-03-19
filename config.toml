@@ -1,6 +1,6 @@
 seed = 42
 fast_dev_run = false
-regenerate = true
+regenerate = false
 tune = false
 train = true
 evaluate = false
@@ -24,20 +24,20 @@ num_workers = 0
 [database]
 path = "data/db/"
 num_partitions = 256
-num_sub_vectors = 96
-k_neighbors = 8
+num_sub_vectors = 64
+k_neighbors = 4
 
 [model]
 num_queries = 16
 d_model = 0              # inferred at run time
 nhead = 1
-dim_feedforward = 256
+dim_feedforward = 512
 dropout = 0.1
 output_dim = 0           # inferred at run time
 query_ini_random = false
 
 [optimizer]
-lr = 1e-4
+lr = 1e-3
 weight_decay = 1e-2
 
 [trainer]
@@ -57,15 +57,15 @@ prune = false
 [hparams]
 [hparams.max_epochs]
 name = "max_epochs"
-low = 2
-high = 8
+low = 3
+high = 20
 [hparams.lr]
 name = "lr"
 low = 1e-5
 high = 1e-3
 [hparams.weight_decay]
 name = "weight_decay"
-low = 1e-5
+low = 1e-8
 high = 1e-2
 [hparams.temperature]
 name = "temperature"

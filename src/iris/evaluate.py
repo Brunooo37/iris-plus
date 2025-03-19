@@ -4,9 +4,9 @@ from torch.utils.data import DataLoader
 from torchmetrics import Accuracy, Metric
 from torchmetrics.wrappers import BootStrapper
 
-from rassifier.config import Config
-from rassifier.model import IRIS
-from rassifier.tune import load_best_checkpoint
+from iris.config import Config
+from iris.model import IRIS
+from iris.tune import load_best_checkpoint
 
 
 def bootstrap_metric(

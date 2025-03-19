@@ -10,8 +10,8 @@ from optuna import Trial
 from optuna.pruners import HyperbandPruner
 from optuna.samplers import QMCSampler, TPESampler
 
-from rassifier.config import Config
-from rassifier.train import Trainer, make_trainer, set_hyperparams
+from iris.config import Config
+from iris.train import Trainer, make_trainer, set_hyperparams
 
 
 class Objective:
@@ -71,11 +71,6 @@ def tune(cfg: Config, tbl: LanceTable):
     study.optimize(func=objective, n_trials=half_trials)
     study.sampler = TPESampler(multivariate=True, seed=cfg.seed)
     study.optimize(func=objective, n_trials=half_trials)
-    if cfg.verbose:
-        print("Best model hyperparameters:")
-        print(json.dumps(study.best_params, indent=4))
-        print(f"Best model checkpoint saved to: {cfg.tuner.checkpoint}")
-        print(f"Best model hyperparameters saved to: {cfg.tuner.path}")
 
 
 def load_best_checkpoint(cfg: Config, model_class: type[nn.Module]) -> nn.Module:

@@ -10,7 +10,7 @@ from sklearn.model_selection import train_test_split
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset
 
-from rassifier.config import Config
+from iris.config import Config
 
 
 def get_centroids(tbl: LanceTable) -> np.ndarray:
@@ -64,13 +64,19 @@ class LanceTableDataset(Dataset):
     def __getitem__(self, idx):
         dfs: list[pl.DataFrame] = []
         id = self.ids[idx]
+        chunk_ids = []
         for query in self.queries:
+            condition = f"(id = {id})"
+            if chunk_ids:
+                excluded_chunks = ", ".join(chunk_ids)
+                condition += f" AND (chunk_id NOT IN ({excluded_chunks}))"
             df = (
                 self.tbl.search(query=query)
-                .where(f"id = {id}", prefilter=True)
+                .where(condition, prefilter=True)
                 .limit(self.k_neighbors)
                 .to_polars()
             )
+            chunk_ids.extend(df["chunk_id"].cast(pl.String).to_list())
             dfs.append(df)
         df = pl.concat(dfs)
         if df.height == 0:
