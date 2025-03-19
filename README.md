@@ -1,12 +1,12 @@
-# Rassifier: efficient infinite context retrieval-based classification
+# IRIS: efficient infinite context retrieval-based classification
 
 ## Development installation
 
 ```bash
 conda env create -f environment.yml
-conda activate rag
+conda activate iris
 git clone https://github.com/Elliot-D-Hill/ragifier.git
-cd rassifier
+cd iris
 pip install -e .
 ```
 
@@ -15,5 +15,5 @@ pip install -e .
 To change the program behavior, modify the parameters in `config.toml`, then run
 
 ```bash
-python -m rassifier
+python -m iris
 ```

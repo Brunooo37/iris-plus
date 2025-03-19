@@ -1,4 +1,4 @@
-name: rag
+name: iris
 channels:
   - pytorch
   - conda-forge
