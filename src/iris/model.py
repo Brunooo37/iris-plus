@@ -11,7 +11,7 @@ class IRIS(nn.Module):
         self,
         d_model: int,
         nhead: int,
-        dim_feedforward: int,
+        hidden_dim: int,
         dropout: float,
         output_dim: int,
         ini_queries: torch.Tensor,
@@ -20,11 +20,11 @@ class IRIS(nn.Module):
         self.queries = nn.Parameter(ini_queries)
         self.mlp = nn.Sequential(
             nn.LayerNorm(d_model),
-            nn.Linear(d_model, dim_feedforward),
+            nn.Linear(d_model, hidden_dim),
             nn.SiLU(),
             nn.Dropout(dropout),
         )
-        self.fc = nn.Linear(dim_feedforward, output_dim)
+        self.fc = nn.Linear(hidden_dim, output_dim)
         self.p = dropout
         self.nhead = nhead
 

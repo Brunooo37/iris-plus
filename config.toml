@@ -31,13 +31,13 @@ k_neighbors = 4
 num_queries = 16
 d_model = 0              # inferred at run time
 nhead = 1
-dim_feedforward = 512
+hidden_dim = 512
 dropout = 0.1
 output_dim = 0           # inferred at run time
 query_ini_random = false
 
 [optimizer]
-lr = 1e-3
+lr = 1e-4
 weight_decay = 1e-2
 
 [trainer]
@@ -67,6 +67,14 @@ high = 1e-3
 name = "weight_decay"
 low = 1e-8
 high = 1e-2
+[hparams.hidden_dim]
+name = "hidden_dim"
+low = 7             # 2^7 = 128
+high = 10           # 2^10 = 1024
+[hparams.dropout]
+name = "dropout"
+low = 0.0
+high = 0.2
 [hparams.temperature]
 name = "temperature"
 low = 0.1

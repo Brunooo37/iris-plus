@@ -1,4 +1,3 @@
-import polars as pl
 import torch
 from torch.utils.data import DataLoader
 from torchmetrics import Accuracy, Metric
@@ -31,11 +30,7 @@ def bootstrap_metrics(cfg: Config, metrics: dict[str, Metric], n_bootstraps: int
 
 
 @torch.no_grad()
-def evaluate_model(
-    cfg: Config,
-    dataloader: DataLoader,
-    n_bootstraps: int = 1000,
-) -> dict:
+def evaluate_model(cfg: Config, dataloader: DataLoader) -> dict:
     metrics = {
         "accuracy": Accuracy(
             task=cfg.task,
@@ -45,7 +40,7 @@ def evaluate_model(
     }
     model = load_best_checkpoint(cfg=cfg, model_class=IRIS)
     results = {}
-    metrics = bootstrap_metrics(cfg, metrics, n_bootstraps)
+    metrics = bootstrap_metrics(cfg, metrics, cfg.evaluator.n_bootstraps)
     for name, metric in metrics.items():
         for inputs, labels, padding_mask in dataloader:
             inputs = inputs.to(cfg.trainer.device)
@@ -60,8 +55,3 @@ def evaluate_model(
         "mean": results["accuracy"]["mean"].item(),
         "std": results["accuracy"]["std"].item(),
     }
-
-
-# TODO generate metrics for subsets of the data
-def evaluate_subsets(df: pl.DataFrame, groups: list[str]):
-    pass

@@ -33,7 +33,7 @@ class ModelConfig(BaseModel):
     num_queries: int
     d_model: int
     nhead: int
-    dim_feedforward: int
+    hidden_dim: int
     dropout: float
     output_dim: int
     query_ini_random: bool
@@ -64,9 +64,11 @@ class TunerConfig(BaseModel):
 
 class HyperparameterConfig(BaseModel):
     max_epochs: dict
-    temperature: dict
     lr: dict
     weight_decay: dict
+    dropout: dict
+    hidden_dim: dict
+    temperature: dict
 
 
 class EvaluatorConfig(BaseModel):

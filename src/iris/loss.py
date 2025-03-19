@@ -4,7 +4,7 @@ import torch.nn as nn
 # import torch.nn.functional as F
 
 
-# encourages queries to be far apart and orthogonal
+# encourages queries to be far apart
 # def query_penalty(queries, temperature):
 #     queries = F.normalize(queries, p=2, dim=-1)
 #     distance_matrix = torch.cdist(queries, queries, p=2)
@@ -14,8 +14,8 @@ import torch.nn as nn
 
 
 def query_penalty(queries, threshold):
-    # Shape: (num_queries, vector_dim)
-    normalized_queries = nn.functional.normalize(queries, p=2, dim=1)
+    # Shape: (num_queries, d_model)
+    out = nn.functional.normalize(queries, p=2, dim=1)
     # Shape: (num_queries, num_queries)
-    similarity_matrix = torch.matmul(normalized_queries, normalized_queries.T)
-    return nn.functional.relu(similarity_matrix - threshold).mean()
+    distance_matrix = torch.cdist(out, out, p=2)
+    return nn.functional.relu(distance_matrix - threshold).mean()

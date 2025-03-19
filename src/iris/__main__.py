@@ -44,11 +44,7 @@ def main():
             loaders = make_loaders(cfg=cfg, tbl=tbl)
             train_model(cfg=cfg, tbl=tbl, use_best=False)
         if cfg.evaluate:
-            data = evaluate_model(
-                cfg=cfg,
-                dataloader=loaders.test,
-                n_bootstraps=cfg.evaluator.n_bootstraps,
-            )
+            data = evaluate_model(cfg=cfg, dataloader=loaders.test)
             results.append(data)
             df = pl.DataFrame(results)
             df.write_parquet(cfg.evaluator.path)

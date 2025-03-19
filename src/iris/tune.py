@@ -23,9 +23,11 @@ class Objective:
     def sample_hyperparameters(self, trial: optuna.Trial):
         return {
             "max_epochs": trial.suggest_int(**self.cfg.hparams.max_epochs),
-            "temperature": trial.suggest_float(**self.cfg.hparams.temperature),
             "lr": trial.suggest_float(**self.cfg.hparams.lr),
             "weight_decay": trial.suggest_float(**self.cfg.hparams.weight_decay),
+            "dropout": trial.suggest_float(**self.cfg.hparams.dropout),
+            "hidden_dim": 2 ** trial.suggest_int(**self.cfg.hparams.hidden_dim),
+            # "temperature": trial.suggest_float(**self.cfg.hparams.temperature),
         }
 
     def __call__(self, trial: Trial) -> float:

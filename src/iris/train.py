@@ -145,12 +145,20 @@ def make_trainer(cfg: Config, tbl: LanceTable) -> Trainer:
 
 
 def set_hyperparams(
-    cfg: Config, max_epochs: int, temperature: float, lr: float, weight_decay: float
+    cfg: Config,
+    max_epochs: int,
+    lr: float,
+    weight_decay: float,
+    temperature: float,
+    hidden_dim: int,
+    dropout: float,
 ) -> Config:
     cfg.trainer.max_epochs = max_epochs
-    cfg.trainer.temperature = temperature
     cfg.optimizer.lr = lr
     cfg.optimizer.weight_decay = weight_decay
+    cfg.model.hidden_dim = hidden_dim
+    cfg.model.dropout = dropout
+    cfg.trainer.temperature = temperature
     return cfg
 
 

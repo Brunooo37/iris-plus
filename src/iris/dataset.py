@@ -80,7 +80,7 @@ class LanceTableDataset(Dataset):
             dfs.append(df)
         df = pl.concat(dfs)
         if df.height == 0:
-            vectors = torch.ones(1, self.vector_dim)
+            vectors = torch.randn(1, self.vector_dim)
             label = self.ignore_index
         else:
             vectors = df["vector"].to_torch()
