@@ -28,6 +28,7 @@ class IRIS(nn.Module):
         self.p = dropout
         self.nhead = nhead
 
+    # TODO swap for nn.MultiheadAttention for simplicity
     def forward(self, x: torch.Tensor, padding_mask: torch.Tensor) -> torch.Tensor:
         N, D = self.queries.size()  # (num_queries, d_model)
         B, L, D = x.size()  # (batch_size, seq_len, d_model)

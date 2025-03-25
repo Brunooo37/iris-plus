@@ -4,7 +4,7 @@ from typing import Callable, cast
 
 import polars as pl
 import polars.selectors as cs
-from datasets import Dataset, load_from_disk
+from datasets import Dataset
 from transformers import AutoTokenizer
 
 from iris.config import Config, DatasetConfig
@@ -56,60 +56,77 @@ def get_df_fn(name: str) -> Callable[[Path], pl.DataFrame]:
             raise ValueError(f"Unknown dataset: {name}")
 
 
-# FIXME need to chunk tokens, not text
-def make_chunks(text, chunk_length, overlap) -> list[str]:
-    words = text.split()
+def make_chunks(
+    input_ids: list[int],
+    attention_mask: list[int],
+    chunk_length: int,
+    overlap: int,
+    pad_id: int,
+):
     chunks = []
-    for i in range(0, len(words), chunk_length - overlap):
-        chunk = " ".join(words[i : i + chunk_length])
+    masks = []
+    offsets = []
+    num_sequences = len(input_ids)
+    step_size = chunk_length - overlap
+    for i in range(0, num_sequences, step_size):
+        chunk = input_ids[i : i + chunk_length]
+        mask = attention_mask[i : i + chunk_length]
+        if i + chunk_length > num_sequences:
+            padding_length = chunk_length - len(chunk)
+            chunk = chunk + [pad_id] * padding_length
+            mask = mask + [0] * padding_length
         chunks.append(chunk)
-    return chunks
+        masks.append(mask)
+        offsets.append(i)
+    return chunks, masks, offsets
 
 
-def format_dataframe(df: pl.DataFrame, texts: list[str]) -> pl.DataFrame:
-    df = df.with_columns(text=pl.Series(texts))
-    df = df.with_row_index(name="chunk_id")
-    df = df.explode("text").select("id", "chunk_id", "label", "text")
-    return df
+def chunk_batch(batch, pad_id: int, cfg: DatasetConfig) -> dict:
+    result = {
+        "input_ids": [],
+        "attention_mask": [],
+        "id": [],
+        "label": [],
+        "chunk_id": [],
+        "offset": [],
+    }
+    for idx, (input_ids, attention_mask) in enumerate(
+        zip(batch["input_ids"], batch["attention_mask"])
+    ):
+        chunks, masks, offsets = make_chunks(
+            input_ids,
+            attention_mask,
+            chunk_length=cfg.chunk_length,
+            overlap=cfg.overlap,
+            pad_id=pad_id,
+        )
+        for chunk_idx, (chunk, mask, offset) in enumerate(zip(chunks, masks, offsets)):
+            result["input_ids"].append(chunk)
+            result["attention_mask"].append(mask)
+            result["id"].append(batch["id"][idx])
+            result["label"].append(batch["label"][idx])
+            result["chunk_id"].append(chunk_idx)
+            result["offset"].append(offset)
+    return result
 
 
-# FIXME need to chunk tokens, not text
-def chunk_text(df: pl.DataFrame, cfg: DatasetConfig) -> pl.DataFrame:
-    texts = []
-    for text in df["text"]:
-        chunks = make_chunks(text, chunk_length=cfg.chunk_length, overlap=cfg.overlap)
-        texts.append(chunks)
-    df = format_dataframe(df, texts)
-    return df
+def tokenize(batch, tokenizer) -> AutoTokenizer:
+    return tokenizer(batch["text"])
 
 
-def tokenize(batch, tokenizer, max_length) -> AutoTokenizer:
-    return tokenizer(
-        batch["text"], truncation=True, padding="max_length", max_length=max_length
-    )
-
-
-def make_dataset(df: pl.DataFrame, cfg: Config) -> Dataset:
+def make_dataset(in_file: str, cfg: Config) -> Dataset:
+    make_df = get_df_fn(name=in_file)
+    df = make_df(cfg.dataset.in_path / in_file).select("id", "label", "text")
     if cfg.fast_dev_run:
         df = df.head(10)
-    df = chunk_text(df=df, cfg=cfg.dataset)
     dataset = Dataset.from_polars(df)
     tokenizer = AutoTokenizer.from_pretrained(cfg.model_id)
-    tokenize_fn = partial(
-        tokenize, tokenizer=tokenizer, max_length=cfg.dataset.max_length
-    )
+    tokenize_fn = partial(tokenize, tokenizer=tokenizer)
     dataset = dataset.map(tokenize_fn, batched=True, desc="Tokenizing")
+    pad_id = cast(int, tokenizer.pad_token_id)
+    chunk_fn = partial(chunk_batch, pad_id=pad_id, cfg=cfg.dataset)
+    dataset = dataset.map(
+        chunk_fn, batched=True, desc="Chunking", remove_columns=dataset.column_names
+    )
+    dataset.save_to_disk(cfg.dataset.out_path)
     return dataset
-
-
-def get_dataset(in_file: str, out_file: str, cfg: Config) -> Dataset:
-    if not cfg.dataset.out_path.exists() or cfg.regenerate:
-        make_df = get_df_fn(name=in_file)
-        df = make_df(cfg.dataset.in_path / in_file).select("id", "label", "text")
-        df.write_parquet(cfg.dataset.inter_path / out_file)
-        dataset = make_dataset(df=df, cfg=cfg)
-        dataset.save_to_disk(cfg.dataset.out_path)
-    else:
-        dataset = load_from_disk(cfg.dataset.out_path)
-        dataset = cast(Dataset, dataset)
-    return dataset.with_format("torch", device=cfg.trainer.device)

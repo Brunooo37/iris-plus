@@ -39,7 +39,7 @@ class Objective:
             self.best_value = trainer.val_loss
             with open(self.cfg.tuner.path, "w") as f:
                 json.dump(hyperparams, f)
-            torch.save(trainer.model.state_dict(), cfg.tuner.checkpoint)
+            torch.save(trainer.model.state_dict(), cfg.trainer.checkpoint)
         return trainer.value
 
 
@@ -76,7 +76,7 @@ def tune(cfg: Config, tbl: LanceTable):
 
 
 def load_best_checkpoint(cfg: Config, model_class: type[nn.Module]) -> nn.Module:
-    model_weights = torch.load(cfg.tuner.checkpoint, weights_only=True)
+    model_weights = torch.load(cfg.trainer.checkpoint, weights_only=True)
     with open(cfg.tuner.path, "r") as f:
         hyperparams = json.load(f)
     cfg = set_hyperparams(cfg=cfg, **hyperparams)

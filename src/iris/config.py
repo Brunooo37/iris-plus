@@ -11,7 +11,6 @@ class DatasetConfig(BaseModel):
     inter_path: Path
     out_path: Path
     train_size: float
-    max_length: int
     chunk_length: int
     overlap: int
 
@@ -47,7 +46,7 @@ class OptimizerConfig(BaseModel):
 
 class TrainerConfig(BaseModel):
     max_epochs: int
-    save_path: Path
+    checkpoint: Path
     ignore_index: int
     eval_every_n_epochs: int
     gradient_clip: float
@@ -57,7 +56,6 @@ class TrainerConfig(BaseModel):
 
 class TunerConfig(BaseModel):
     path: Path
-    checkpoint: Path
     n_trials: int
     prune: bool
 
@@ -88,7 +86,8 @@ def get_device():
 class Config(BaseModel):
     seed: int
     fast_dev_run: bool
-    regenerate: bool
+    make_dataset: bool
+    make_database: bool
     tune: bool
     train: bool
     evaluate: bool

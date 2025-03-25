@@ -168,4 +168,4 @@ def train_model(cfg: Config, tbl: LanceTable, use_best: bool = False):
         cfg = set_hyperparams(cfg=cfg, **hyperparameters)
     trainer = make_trainer(cfg=cfg, tbl=tbl)
     trainer.train()
-    torch.save(trainer.model.state_dict(), cfg.tuner.checkpoint)
+    torch.save(trainer.model.state_dict(), cfg.trainer.checkpoint)

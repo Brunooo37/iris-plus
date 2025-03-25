@@ -1,10 +1,11 @@
 seed = 42
 fast_dev_run = false
-regenerate = false
+make_dataset = true
+make_database = true
 tune = false
 train = true
 evaluate = false
-model_id = "answerdotai/ModernBERT-large"
+model_id = "answerdotai/ModernBERT-base" # "answerdotai/ModernBERT-large", try mpnet too
 verbose = true
 
 [dataset]
@@ -12,12 +13,11 @@ in_path = "data/raw/"
 inter_path = "data/intermediate/"
 out_path = "data/processed/"
 train_size = 0.8
-max_length = 128
-chunk_length = 128
+chunk_length = 256
 overlap = 32
 
 [dataloader]
-batch_size = 16
+batch_size = 64
 pin_memory = true
 num_workers = 0
 
@@ -28,7 +28,7 @@ num_sub_vectors = 64
 k_neighbors = 4
 
 [model]
-num_queries = 16
+num_queries = 8
 d_model = 0              # inferred at run time
 nhead = 1
 hidden_dim = 512
@@ -42,7 +42,7 @@ weight_decay = 1e-2
 
 [trainer]
 max_epochs = 20
-save_path = "models/hyperpartisan.pt"
+checkpoint = "models/checkpoint.pt"
 gradient_clip = 1.0
 ignore_index = -100
 eval_every_n_epochs = 1
@@ -50,7 +50,6 @@ temperature = 1.0
 
 [tuner]
 path = "models/hyperparameters.json"
-checkpoint = "models/hyperpartisan.pt"
 n_trials = 10
 prune = false
 
