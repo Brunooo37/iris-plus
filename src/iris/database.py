@@ -7,7 +7,7 @@ import torch
 from datasets import load_from_disk
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from transformers import AutoModel
+from transformers import AutoModel, BitsAndBytesConfig
 
 from iris.config import Config
 
@@ -46,17 +46,37 @@ def make_batches(model: AutoModel, dataloader: DataLoader):
         yield df
 
 
-def make_database(tbl_name: str, model, cfg: Config):
-    if torch.cuda.is_available():
-        model.forward = torch.compile(
-            model.forward, mode="reduce-overhead", fullgraph=True
+def make_encoder(cfg: Config):
+    if cfg.quantize:
+        quant_config = BitsAndBytesConfig(load_in_8bit=True)
+        encoder = AutoModel.from_pretrained(
+            cfg.model_id,
+            quantization_config=quant_config,
+            torch_dtype="auto",
+            device_map="auto",
+            tp_plan="auto",
         )
-    model.eval()
+    else:
+        encoder = AutoModel.from_pretrained(
+            cfg.model_id, torch_dtype="auto", device_map="auto"
+        )
+    if cfg.compile:
+        encoder.forward = torch.compile(
+            encoder.forward, mode="reduce-overhead", fullgraph=True
+        )
+    encoder.to(cfg.model.device)
+    return encoder
+
+
+def make_database(tbl_name: str, cfg: Config):
+    # type: ignore
     dataset = load_from_disk(cfg.dataset.out_path)
     dataset = dataset.with_format("torch", device=cfg.trainer.device)
     dataset = cast(torch.utils.data.Dataset, dataset)
     dataloader = DataLoader(dataset, **cfg.dataloader.model_dump())
     db = lancedb.connect(cfg.database.path)
+    model = make_encoder(cfg=cfg)
+    model.eval()
     batch_fn = partial(make_batches, model=model, dataloader=dataloader)
     tbl = db.create_table(tbl_name, data=batch_fn(), mode="overwrite")
     tbl.create_scalar_index("id", index_type="BTREE")

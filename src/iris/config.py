@@ -86,6 +86,9 @@ def get_device():
 class Config(BaseModel):
     seed: int
     fast_dev_run: bool
+    distributed: bool
+    quantize: bool
+    compile: bool
     make_dataset: bool
     make_database: bool
     tune: bool

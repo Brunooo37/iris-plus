@@ -1,9 +1,10 @@
+import os
 from typing import cast
 
 import lancedb
 import polars as pl
 import torch
-from transformers import AutoModel  # , BitsAndBytesConfig
+from transformers import AutoConfig
 
 from iris.config import get_config
 from iris.data import make_dataset
@@ -13,21 +14,22 @@ from iris.evaluate import evaluate_model
 from iris.train import train_model
 from iris.tune import tune
 
+# TODO pip install --upgrade transformers accelerate bitsandbytes
+# TODO torchrun --nproc-per-node 4 -m iris
+
 
 def main():
     cfg = get_config()
     torch.manual_seed(cfg.seed)
     torch.set_float32_matmul_precision("high")
 
-    # quant_config = BitsAndBytesConfig(load_in_8bit=True)
-    encoder = AutoModel.from_pretrained(
-        cfg.model_id,
-        # quantization_config=quant_config,
-        # torch_dtype=torch.bfloat16,
-        device_map="auto",
-    )
-    encoder.to(cfg.model.device)
-    cfg.model.d_model = encoder.config.hidden_size
+    if cfg.distributed:
+        rank = int(os.environ["RANK"])
+        device = torch.device(f"cuda:{rank}")
+        torch.cuda.set_device(device)
+        torch.distributed.init_process_group("nccl", device_id=device)
+
+    cfg.model.d_model = AutoConfig.from_pretrained(cfg.model_id).hidden_size
 
     in_file = "arxiv11/data"
     tbl_name = "arxiv11"
@@ -36,7 +38,7 @@ def main():
         make_dataset(in_file=in_file, cfg=cfg)
 
     if not cfg.database.path.exists() or cfg.make_database:
-        make_database(tbl_name=tbl_name, model=encoder, cfg=cfg)
+        make_database(tbl_name=tbl_name, cfg=cfg)
 
     db = lancedb.connect(cfg.database.path)
     tbl = db.open_table(tbl_name)

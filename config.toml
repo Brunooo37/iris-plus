@@ -1,11 +1,15 @@
 seed = 42
 fast_dev_run = false
+distributed = false
+quantize = false
+compile = false
 make_dataset = true
 make_database = true
 tune = false
 train = true
 evaluate = false
-model_id = "answerdotai/ModernBERT-base" # "answerdotai/ModernBERT-large", try mpnet too
+# "answerdotai/ModernBERT-large", try mpnet too
+model_id = "answerdotai/ModernBERT-base" 
 verbose = true
 
 [dataset]
