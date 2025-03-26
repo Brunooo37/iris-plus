@@ -3,8 +3,8 @@ fast_dev_run = false
 distributed = false
 quantize = false
 compile = false
-make_dataset = true
-make_database = true
+make_dataset = false
+make_database = false
 tune = false
 train = true
 evaluate = false
@@ -34,22 +34,21 @@ k_neighbors = 4
 [model]
 num_queries = 8
 d_model = 0              # inferred at run time
-nhead = 1
+nhead = 4
 hidden_dim = 512
 dropout = 0.1
 output_dim = 0           # inferred at run time
 query_ini_random = false
 
 [optimizer]
-lr = 1e-4
-weight_decay = 1e-2
+lr = 1e-3
+weight_decay = 1e-5
 
 [trainer]
-max_epochs = 20
+max_epochs = 10
 checkpoint = "models/checkpoint.pt"
 gradient_clip = 1.0
 ignore_index = -100
-eval_every_n_epochs = 1
 temperature = 1.0
 
 [tuner]
@@ -65,7 +64,7 @@ high = 20
 [hparams.lr]
 name = "lr"
 low = 1e-5
-high = 1e-3
+high = 1e-2
 [hparams.weight_decay]
 name = "weight_decay"
 low = 1e-8

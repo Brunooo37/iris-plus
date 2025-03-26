@@ -3,6 +3,7 @@ import json
 import torch
 import torch.nn as nn
 from lancedb.table import LanceTable
+from torch import Tensor
 from torch.nn.utils import clip_grad_norm_
 from torch.optim.adamw import AdamW
 from torch.optim.lr_scheduler import ExponentialLR, LRScheduler
@@ -13,6 +14,7 @@ from tqdm import tqdm
 
 from iris.config import Config, TrainerConfig
 from iris.dataset import DataLoaders, make_loaders
+from iris.loss import QueryLoss
 from iris.model import IRIS, make_model
 
 
@@ -32,29 +34,14 @@ class Trainer:
         self.scheduler = scheduler
         self.criterion = criterion
         self.loaders = loaders
-        self.progress_bar = tqdm(range(cfg.max_epochs), desc="Epoch")
+        self.max_epochs = cfg.max_epochs
+        num_steps = len(loaders.train) * cfg.max_epochs
+        self.progress_bar = tqdm(total=num_steps, desc="Epoch")
         self.cfg = cfg
         self.train_loss = float("inf")
         self.val_loss = float("inf")
         self.value = 0.0
         self.metric = metric
-
-    def train_step(
-        self, inputs: torch.Tensor, labels: torch.Tensor, padding_mask: torch.Tensor
-    ) -> torch.Tensor:
-        self.optimizer.zero_grad()
-        inputs = inputs.to(self.cfg.device)
-        labels = labels.to(self.cfg.device)
-        padding_mask = padding_mask.to(self.cfg.device)
-        outputs = self.model(inputs, padding_mask)
-        loss = self.criterion(outputs, labels)
-        # loss += query_penalty(queries=self.model.queries, threshold=threshold)
-        loss.backward()
-        clip_grad_norm_(self.model.parameters(), max_norm=self.cfg.gradient_clip)
-        self.optimizer.step()
-        queries = self.model.queries.detach().cpu().numpy()
-        self.loaders.train.dataset.queries = queries  # type: ignore
-        return loss
 
     def update_progress_bar(self) -> None:
         postfix = (
@@ -65,20 +52,34 @@ class Trainer:
         self.progress_bar.set_postfix_str(postfix)
         self.progress_bar.update()
 
+    def train_step(self, batch: tuple[Tensor, Tensor, Tensor]) -> Tensor:
+        inputs, labels, padding_mask = batch
+        self.optimizer.zero_grad()
+        inputs = inputs.to(self.cfg.device)
+        labels = labels.to(self.cfg.device)
+        padding_mask = padding_mask.to(self.cfg.device)
+        outputs = self.model(inputs, padding_mask)
+        loss = self.criterion(outputs, labels, self.model.queries)
+        loss.backward()
+        clip_grad_norm_(self.model.parameters(), max_norm=self.cfg.gradient_clip)
+        self.optimizer.step()
+        queries = self.model.queries.detach().cpu().numpy()
+        self.loaders.train.dataset.queries = queries  # type: ignore
+        return loss
+
     def train_epoch(self) -> None:
         self.model.train()
         loss = 0.0
-        for inputs, labels, padding_mask in self.loaders.train:
-            loss += self.train_step(inputs, labels, padding_mask)
-        loss /= len(self.loaders.train)
-        self.train_loss = loss
+        for step, batch in enumerate(self.loaders.train, start=1):
+            loss += self.train_step(batch)
+            self.train_loss = loss.item() / step
+            self.update_progress_bar()
         self.validate()
         self.scheduler.step()
-        self.update_progress_bar()
 
     def train(self) -> None:
         self.model.to(self.cfg.device)
-        for epoch in self.progress_bar:
+        for epoch in range(self.max_epochs):
             self.train_epoch()
         self.progress_bar.close()
         queries = self.model.queries.detach().cpu().numpy()
@@ -95,7 +96,7 @@ class Trainer:
             labels = labels.to(self.cfg.device)
             padding_mask = padding_mask.to(self.cfg.device)
             outputs = self.model(inputs, padding_mask)
-            loss += self.criterion(outputs, labels)
+            loss += self.criterion(outputs, labels, self.model.queries)
             preds = outputs.argmax(dim=1)
             self.metric.update(preds, labels)
         loss /= len(self.loaders.validation)
@@ -107,7 +108,7 @@ class Trainer:
 @torch.inference_mode()
 def predict(
     model: nn.Module, dataloader: DataLoader, device: str | torch.device
-) -> list[torch.Tensor]:
+) -> list[Tensor]:
     model.eval()
     predictions = []
     for inputs, labels, padding_mask in dataloader:
@@ -125,7 +126,9 @@ def make_trainer(cfg: Config, tbl: LanceTable) -> Trainer:
     model = make_model(ini_queries=ini_queries, cfg=cfg.model)
     model.to(cfg.trainer.device)
     optimizer = AdamW(model.parameters(), **cfg.optimizer.model_dump(), fused=True)
-    criterion = nn.CrossEntropyLoss(ignore_index=cfg.trainer.ignore_index)
+    criterion = QueryLoss(
+        temperature=cfg.trainer.temperature, ignore_index=cfg.trainer.ignore_index
+    )
     scheduler = ExponentialLR(optimizer, gamma=0.9, last_epoch=-1)
     metric = Accuracy(
         task=cfg.task,

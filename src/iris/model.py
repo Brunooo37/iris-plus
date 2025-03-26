@@ -14,22 +14,23 @@ class IRIS(nn.Module):
         hidden_dim: int,
         dropout: float,
         output_dim: int,
-        ini_queries: torch.Tensor,
+        ini_queries: torch.Tensor | np.ndarray,
     ) -> None:
         super().__init__()
-        self.queries = nn.Parameter(ini_queries)
+        self.queries = nn.Parameter(torch.tensor(ini_queries, dtype=torch.float32))
+        self.head_dim = d_model // nhead
+        self.num_heads = nhead
         self.mlp = nn.Sequential(
             nn.LayerNorm(d_model),
             nn.Linear(d_model, hidden_dim),
-            nn.SiLU(),
+            nn.ReLU(),
             nn.Dropout(dropout),
         )
         self.fc = nn.Linear(hidden_dim, output_dim)
         self.p = dropout
         self.nhead = nhead
 
-    # TODO swap for nn.MultiheadAttention for simplicity
-    def forward(self, x: torch.Tensor, padding_mask: torch.Tensor) -> torch.Tensor:
+    def query_cross_attention(self, x: torch.Tensor, attn_mask) -> torch.Tensor:
         N, D = self.queries.size()  # (num_queries, d_model)
         B, L, D = x.size()  # (batch_size, seq_len, d_model)
         E = D // self.nhead
@@ -41,7 +42,7 @@ class IRIS(nn.Module):
         # (batch_size, nhead, seq_len, head_dim)
         x = x.view(B, L, H, E).transpose(1, 2)
         # (batch_size, 1, 1, seq_len)
-        attn_mask = padding_mask.view(B, 1, 1, L)
+        attn_mask = attn_mask.view(B, 1, 1, L)
         # (batch_size, nhead, num_queries, head_dim)
         out = F.scaled_dot_product_attention(
             query=queries,
@@ -51,6 +52,10 @@ class IRIS(nn.Module):
             dropout_p=(self.p if self.training else 0.0),
         )
         out = out.view(B, N, D)  # (batch_size, num_queries, d_model)
+        return out
+
+    def forward(self, x: torch.Tensor, padding_mask: torch.Tensor) -> torch.Tensor:
+        out = self.query_cross_attention(x, attn_mask=padding_mask)
         out = self.mlp(out)  # (batch_size, num_queries, dim_feedforward)
         out = out.mean(dim=1)  # (batch_size, d_model)
         out = self.fc(out)
@@ -58,7 +63,6 @@ class IRIS(nn.Module):
 
 
 def make_model(ini_queries: np.ndarray, cfg: ModelConfig):
-    model_config = cfg.model_dump(exclude={"num_queries", "query_ini_random", "device"})
-    queries = torch.tensor(ini_queries, dtype=torch.float)
-    queries.to(cfg.device)
-    return IRIS(ini_queries=queries, **model_config)
+    exclude = {"num_queries", "query_ini_random", "device"}
+    model_config = cfg.model_dump(exclude=exclude)
+    return IRIS(ini_queries=ini_queries, **model_config)

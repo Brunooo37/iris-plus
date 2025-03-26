@@ -48,7 +48,6 @@ class TrainerConfig(BaseModel):
     max_epochs: int
     checkpoint: Path
     ignore_index: int
-    eval_every_n_epochs: int
     gradient_clip: float
     temperature: float
     device: str = "cpu"
