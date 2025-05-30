@@ -5,7 +5,7 @@
 ```bash
 conda env create -f environment.yml
 conda activate iris
-git clone https://github.com/Elliot-D-Hill/iris.git
+git clone https://github.com/fengnanli-neo/iris.git
 cd iris
 pip install -e .
 ```
